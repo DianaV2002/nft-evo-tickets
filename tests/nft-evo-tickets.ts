@@ -1,6 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { NftEvoTickets } from "../target/types/nft_evo_tickets";
+import { runAllEventTests } from "./events";
 
 describe("nft-evo-tickets", () => {
   // Configure the client to use the local cluster.
@@ -8,9 +9,11 @@ describe("nft-evo-tickets", () => {
 
   const program = anchor.workspace.nftEvoTickets as Program<NftEvoTickets>;
 
-  it("Is initialized!", async () => {
-    // Add your test here.
+  it("Should initialize the program", async () => {
     const tx = await program.methods.initialize().rpc();
-    console.log("Your transaction signature", tx);
+    console.log("Program initialized with signature:", tx);
   });
+
+  // Run all event tests
+  runAllEventTests();
 });
