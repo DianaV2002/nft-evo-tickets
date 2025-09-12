@@ -11,6 +11,7 @@ pub use instructions::*;
 pub use state::*;
 
 use managers::event_manager::EventManager;
+use managers::ticket_manager::TicketManager;
 
 declare_id!("5MAXo56hQiQGL9hd9HJi9xdUnJNLXor3XYyK9kC4bNBn");
 
@@ -31,6 +32,10 @@ pub mod nft_evo_tickets {
         ticket_price: u64,
     ) -> Result<()> {
         EventManager::run_create_event(ctx, name, description, date, location, ticket_price)
+    }
+
+    pub fn buy_ticket(ctx: Context<BuyTicket>, date_of_purchase: i64) -> Result<()> {
+        TicketManager::run_buy_ticket(ctx, date_of_purchase)
     }
 }
 
@@ -62,3 +67,28 @@ pub struct CreateEvent<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[account]
+#[derive(InitSpace)]
+
+pub struct Ticket {
+    pub event: Pubkey,
+    pub price: u64,
+    pub date_of_purchase: i64,
+    pub owner: Pubkey,
+    // TODO: need to check why I get "consumed 5805 of 200000 compute units" and "failed: Failed to reallocate account data"
+    // #[max_len(10240)] // ~10 KB
+    // pub qr_code: Vec<u8>, // QR bytes
+}
+
+#[derive(Accounts)]
+pub struct BuyTicket<'info> {
+    #[account(init, payer = owner, space = 8 + Ticket::INIT_SPACE)]
+    pub ticket: Account<'info, Ticket>,
+    pub event: Account<'info, Event>,
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    /// CHECK: The organizer is not checked because it's part of the event account.
+    #[account(mut)]
+    pub organizer: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+}

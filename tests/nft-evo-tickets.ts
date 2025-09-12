@@ -2,6 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { NftEvoTickets } from "../target/types/nft_evo_tickets";
 import { runAllEventTests } from "./events";
+import { runAllTicketTests } from "./tickets";
 
 describe("nft-evo-tickets", () => {
   // Configure the client to use the local cluster.
@@ -14,6 +15,6 @@ describe("nft-evo-tickets", () => {
     console.log("Program initialized with signature:", tx);
   });
 
-  // Run all event tests
   runAllEventTests();
+  runAllTicketTests();
 });
