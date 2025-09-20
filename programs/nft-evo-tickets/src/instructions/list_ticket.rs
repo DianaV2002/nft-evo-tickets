@@ -30,7 +30,7 @@ pub struct ListTicketCtx<'info> {
     #[account(
         init,
         payer = seller,
-        space = ListingAccount::SPACE,
+        space = 8 + ListingAccount::INIT_SPACE,
         seeds = [
             PROGRAM_SEED.as_bytes(),
             LISTING_SEED.as_bytes(),

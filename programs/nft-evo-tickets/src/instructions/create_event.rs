@@ -14,7 +14,7 @@ pub struct CreateEventCtx<'info> {
     #[account(
         init,
         payer = organizer,
-        space = EventAccount::SPACE,
+        space = 8 + EventAccount::INIT_SPACE,
         seeds = [PROGRAM_SEED.as_bytes(), EVENT_SEED.as_bytes(), &event_id.to_le_bytes()],
         bump
     )]
@@ -30,10 +30,8 @@ pub fn handler(
     start_ts: i64,
     end_ts: i64,
 ) -> Result<()> {
-    // Validate input parameters
-    require!(name.len() <= EventAccount::MAX_NAME_LEN, ErrorCode::InvalidInput);
-    require!(name.len() > 0, ErrorCode::InvalidInput);
-    require!(start_ts > 0, ErrorCode::InvalidInput);
+    // Basic validation
+    require!(name.len() <= 64, ErrorCode::InvalidInput);
     require!(end_ts > start_ts, ErrorCode::InvalidInput);
     
     // Validate that the event is in the future

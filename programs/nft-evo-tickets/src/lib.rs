@@ -5,7 +5,7 @@ pub mod error;
 pub mod state;
 pub mod instructions;
 
-declare_id!("6cDRhNow2KUm5MuC6vVVATDN6MTq7S6vLzFcJracCvYB");
+declare_id!("G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr");
 
 pub use instructions::*;
 pub use state::*;
@@ -47,8 +47,12 @@ pub mod nft_evo_tickets {
         create_event_handler(ctx, event_id, name, start_ts, end_ts)
     }
 
-    pub fn mint_ticket(ctx: Context<MintTicketCtx>, seat: Option<String>) -> Result<()> {
-        mint_ticket_handler(ctx, seat)
+    pub fn mint_ticket(
+        ctx: Context<MintTicketCtx>,
+        seat: Option<String>,
+        metadata_uri_override: Option<String>,
+    ) -> Result<()> {
+        mint_ticket_handler(ctx, seat, metadata_uri_override)
     }
 
     pub fn list_ticket(

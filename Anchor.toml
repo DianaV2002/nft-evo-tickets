@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-nft_evo_tickets = "6cDRhNow2KUm5MuC6vVVATDN6MTq7S6vLzFcJracCvYB"
+nft_evo_tickets = "G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr"
 
 [programs.localnet]
 nft_evo_tickets = "6cDRhNow2KUm5MuC6vVVATDN6MTq7S6vLzFcJracCvYB"
@@ -19,4 +19,4 @@ cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/setup.ts tests/nft-evo-tickets.ts"

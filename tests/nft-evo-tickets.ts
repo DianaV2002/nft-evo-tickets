@@ -8,24 +8,23 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import fs from "fs";
+import path from "path";
+import { getBundlr, uploadJsonToArweave, uploadPngToArweave, ensureBundlrFunds } from "./helpers/arweave";
 
 async function ensureBalance(conn: Connection, pubkey: PublicKey, wantLamports: number) {
   const bal = await conn.getBalance(pubkey);
   if (bal >= wantLamports) return;
 
-  // backoff + confirm with latest blockhash (more reliable)
-  let delay = 500;
-  for (let i = 0; i < 6; i++) {
-    const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash();
-    const sig = await conn.requestAirdrop(pubkey, wantLamports - bal);
-    await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed")
-      .catch(() => {});
-    const now = await conn.getBalance(pubkey);
-    if (now >= wantLamports) return;
-    await new Promise(r => setTimeout(r, delay));
-    delay *= 2;
+  console.log(`Balance for ${pubkey.toBase58()} is ${bal / LAMPORTS_PER_SOL} SOL. Requesting airdrop...`);
+  try {
+    const signature = await conn.requestAirdrop(pubkey, wantLamports - bal);
+    await conn.confirmTransaction(signature);
+    console.log("Airdrop successful.");
+  } catch (error) {
+    console.error(`Airdrop failed for ${pubkey.toBase58()}:`, error);
+    throw new Error("Airdrop failed. Please fund your wallet manually or try again later if on a rate-limited network.");
   }
-  throw new Error("Airdrop failed after retries");
 }
 
 describe("nft-evo-tickets", function() {
@@ -102,66 +101,119 @@ describe("nft-evo-tickets", function() {
 
     // Now mint a ticket
     const ticketOwner = provider.wallet!.publicKey;
-    // The mint account will be created by the program, we just need the address
-    const nftMint = Keypair.generate();
-
+    
     const [ticketPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("nft-evo-tickets"), Buffer.from("ticket"), eventPda.toBuffer(), ticketOwner.toBuffer()],
       program.programId
     );
 
+    // Derive the NFT mint PDA
+    const [nftMint] = PublicKey.findProgramAddressSync(
+      [Buffer.from("nft-evo-tickets"), Buffer.from("nft-mint"), eventPda.toBuffer(), ticketOwner.toBuffer()],
+      program.programId
+    );
+
     const [metadataPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("metadata"), new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").toBuffer(), nftMint.publicKey.toBuffer()],
+      [Buffer.from("metadata"), new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").toBuffer(), nftMint.toBuffer()],
       new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
     );
 
     const [masterEditionPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("metadata"), new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").toBuffer(), nftMint.publicKey.toBuffer(), Buffer.from("edition")],
+      [Buffer.from("metadata"), new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").toBuffer(), nftMint.toBuffer(), Buffer.from("edition")],
       new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
     );
 
     const [tokenAccountPda] = PublicKey.findProgramAddressSync(
-      [ticketOwner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), nftMint.publicKey.toBuffer()],
+      [ticketOwner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), nftMint.toBuffer()],
       ASSOCIATED_TOKEN_PROGRAM_ID
     );
 
     console.log("Account addresses:");
     console.log("  - Event:", eventPda.toString());
     console.log("  - Ticket:", ticketPda.toString());
-    console.log("  - NFT Mint:", nftMint.publicKey.toString());
+    console.log("  - NFT Mint:", nftMint.toString());
     console.log("  - Metadata:", metadataPda.toString());
     console.log("  - Master Edition:", masterEditionPda.toString());
     console.log("  - Token Account:", tokenAccountPda.toString());
 
-    // First, create the mint account
-    console.log("\n🔧 Creating mint account...");
-    const createMintTx = await provider.connection.requestAirdrop(provider.wallet!.publicKey, 1000000000); // 1 SOL
-    await provider.connection.confirmTransaction(createMintTx);
+    // Check if we have enough balance for minting
+    console.log("\n🔧 Checking balance for minting (if needed by RPC provider)...");
+    const balance = await provider.connection.getBalance(provider.wallet!.publicKey);
+    console.log(`Current balance: ${balance / LAMPORTS_PER_SOL} SOL`);
+    
+    if (balance < 0.5 * LAMPORTS_PER_SOL) {
+      console.log("Insufficient balance for minting. Please fund your wallet or try again later.");
+      throw new Error("Insufficient balance for minting");
+    }
 
-    try {
-      const tx = await program.methods
-        .mintTicket("A1")
-        .accounts({
-          authority: provider.wallet!.publicKey,
-          eventAccount: eventPda,
-          ticketAccount: ticketPda,
-          owner: ticketOwner,
-          nftMint: nftMint.publicKey,
-          metadata: metadataPda,
-          masterEdition: masterEditionPda,
-          tokenAccount: tokenAccountPda,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          tokenMetadataProgram: new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"),
-          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-        })
-        .signers([nftMint])
-        .rpc();
+    // --- Build metadata JSON (respect limits) ---
+    const name = "TIX • Concert for NFT Minting • A1".slice(0, 32);
+    const symbol = "TIX".slice(0, 10);
+    const description = "Entry ticket";
+    const attributes = [
+      { trait_type: "Event", value: eventName },
+      { trait_type: "Seat", value: "A1" },
+      { trait_type: "Stage", value: "QR" },
+    ];
+
+    // (Optional) upload an image to Arweave first
+    console.log("BUNDLR_SOLANA_SECRET_KEY_B58:", process.env.BUNDLR_SOLANA_SECRET_KEY_B58);
+    const bundlr = await getBundlr(process.env.BUNDLR_SOLANA_SECRET_KEY_B58!);
+    // Prepare an image buffer or skip if you don’t want images
+    const imagePath = path.join(__dirname, "fixtures", "ticket.png");
+    const haveImage = fs.existsSync(imagePath);
+    let imageUrl: string | undefined = undefined;
+
+    if (haveImage) {
+      const png = fs.readFileSync(imagePath);
+      await ensureBundlrFunds(bundlr, png.length + 2048);
+      const img = await uploadPngToArweave(bundlr, png);
+      imageUrl = img.url; // e.g. https://arweave.net/<imgId>
+    }
+
+    const metadata = {
+      name,
+      symbol,
+      description,
+      image: imageUrl, // or omit if none
+      external_url: `https://example.com/events/${eventPda.toBase58()}`,
+      attributes,
+      properties: {
+        category: "ticket",
+        files: imageUrl ? [{ uri: imageUrl, type: "image/png" }] : [],
+      },
+    };
+
+    const jsonBytes = Buffer.byteLength(JSON.stringify(metadata), "utf8");
+    await ensureBundlrFunds(bundlr, jsonBytes + 2048);
+    const { url: arweaveUri } = await uploadJsonToArweave(bundlr, metadata);
+
+    // Log for sanity:
+    console.log("Arweave metadata:", arweaveUri);
+
+    // --- Call your instruction with URI override ---
+    const tx = await program.methods
+      .mintTicket("A1", arweaveUri) // pass override
+      .accounts({
+        authority: provider.wallet!.publicKey,
+        eventAccount: eventPda,
+        ticketAccount: ticketPda,
+        owner: ticketOwner,
+        nftMint: nftMint,
+        metadata: metadataPda,
+        masterEdition: masterEditionPda,
+        tokenAccount: tokenAccountPda,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        tokenMetadataProgram: new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"),
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      })
+      .rpc();
 
       console.log("Ticket minted successfully!");
       console.log("Transaction signature:", tx);
-      console.log("NFT Mint:", nftMint.publicKey.toString());
+      console.log("NFT Mint:", nftMint.toString());
       console.log("Ticket Owner:", ticketOwner.toString());
       console.log("Ticket Account:", ticketPda.toString());
 
@@ -175,9 +227,5 @@ describe("nft-evo-tickets", function() {
       console.log("  - NFT Mint:", ticketAccount.nftMint.toString());
       console.log("  - Is Listed:", ticketAccount.isListed);
 
-    } catch (error) {
-      console.error("Error minting ticket:", error);
-      throw error;
-    }
   });
 });

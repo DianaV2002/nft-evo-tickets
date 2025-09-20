@@ -1,13 +1,12 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::{program::invoke_signed, rent::Rent};
+use anchor_lang::solana_program::{rent::Rent, program::{invoke, invoke_signed}};
 use anchor_lang::solana_program::system_instruction;
-use anchor_spl::{
-    associated_token::AssociatedToken,
-    token::{self, InitializeMint2, MintTo, Token, TokenAccount},
+use anchor_spl::{associated_token::AssociatedToken,
+    token::{self, Mint, MintTo, Token, TokenAccount},
 };
+use anchor_spl::associated_token::{self, Create as AtaCreate};
 use mpl_token_metadata::instructions::{CreateMasterEditionV3, CreateMasterEditionV3InstructionArgs, CreateMetadataAccountV3, CreateMetadataAccountV3InstructionArgs};
 use mpl_token_metadata::types::{Collection, Creator, DataV2};
-use anchor_lang::solana_program::program_pack::Pack; 
 use anchor_spl::token::spl_token::state::Mint as SplTokenMint;
 
 use crate::constants::{PROGRAM_SEED, TICKET_SEED};
@@ -25,7 +24,7 @@ pub struct MintTicketCtx<'info> {
     #[account(
         init,
         payer = authority,
-        space = TicketAccount::SPACE,
+        space = 8 + TicketAccount::INIT_SPACE,
         seeds = [
             PROGRAM_SEED.as_bytes(),
             TICKET_SEED.as_bytes(),
@@ -39,10 +38,24 @@ pub struct MintTicketCtx<'info> {
     /// Future ticket owner (no signature required)
     pub owner: SystemAccount<'info>,
 
-    /// CHECK: Mint account is created in this instruction via System Program, then initialized via SPL Token CPI.
-    /// Seeds/signature are validated by using our program-derived seeds when invoking `create_account`.
-    #[account(mut)]
-    pub nft_mint: UncheckedAccount<'info>,
+    /// The mint account for the NFT ticket. It will be initialized by the program.
+    #[account(
+        init,
+        payer = authority,
+        seeds = [
+            PROGRAM_SEED.as_bytes(),
+            b"nft-mint",
+            event_account.key().as_ref(),
+            owner.key().as_ref(),
+        ],
+        bump,
+        mint::decimals = 0,
+        mint::authority = ticket_account.key(),
+        mint::freeze_authority = ticket_account.key(),
+        mint::token_program = token_program,
+    )]
+    pub nft_mint: Account<'info, Mint>,
+    
 
     /// CHECK: Metaplex Metadata PDA for the mint. We don't deserialize; address is derived off-chain/on client
     /// and verified here by comparing with expected PDA if desired.
@@ -53,20 +66,17 @@ pub struct MintTicketCtx<'info> {
     #[account(mut)]
     pub master_edition: UncheckedAccount<'info>,
 
-    // Create owner's ATA if needed
-    #[account(
-        init_if_needed,
-        payer = authority,
-        associated_token::mint = nft_mint,
-        associated_token::authority = owner
-    )]
-    pub token_account: Account<'info, TokenAccount>,
+    /// CHECK: Owner's ATA for `nft_mint`. We create it in the handler (after the mint is initialized)
+    /// using the Associated Token Program and require it matches the canonical PDA. We don't deserialize it.
+    #[account(mut)]
+    pub token_account: UncheckedAccount<'info>,
 
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 
     /// CHECK: External Metaplex Token Metadata program.
+    #[account(address = mpl_token_metadata::ID)]
     pub token_metadata_program: UncheckedAccount<'info>,
 
     pub rent: Sysvar<'info, Rent>,
@@ -76,6 +86,7 @@ pub struct MintTicketCtx<'info> {
 pub fn handler(
     ctx: Context<MintTicketCtx>,
     seat: Option<String>,
+    metadata_uri_override: Option<String>, // NEW
 ) -> Result<()> {
     let _event = &ctx.accounts.event_account;
     let nft_mint = &ctx.accounts.nft_mint;
@@ -85,52 +96,40 @@ pub fn handler(
     let owner_key = ctx.accounts.owner.key();
     let ticket_bump = ctx.bumps.ticket_account;
 
-    let ticket = &mut ctx.accounts.ticket_account;
-
     // Define signer_seeds here so it's in scope for Metaplex CPIs
-    let signer_seeds: &[&[&[u8]]] = &[&[PROGRAM_SEED.as_bytes(), TICKET_SEED.as_bytes(), event_key.as_ref(), owner_key.as_ref(), &[ticket_bump]]];
-
-    // 1) Allocate + fund the mint account via System Program
-    let rent_lamports = Rent::get()?.minimum_balance(SplTokenMint::LEN);
-    let create_ix = system_instruction::create_account(
-        &authority.key(),
-        &nft_mint.key(),
-        rent_lamports,
-        SplTokenMint::LEN as u64,
-        &ctx.accounts.token_program.key(), // program owner = token program
-    );
-    invoke_signed(
-        &create_ix,
+    let signer_seeds: &[&[&[u8]]] = &[
         &[
-            authority.to_account_info(),
-            nft_mint.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-        ],
-        signer_seeds,
-    )?;
+            PROGRAM_SEED.as_bytes(),
+            TICKET_SEED.as_bytes(),
+            event_key.as_ref(),
+            owner_key.as_ref(),
+            &[ticket_bump],
+        ]
+    ];
 
-    // 2) Initialize the mint (decimals = 0 for NFTs/tickets)
-    token::initialize_mint2(
-        CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            InitializeMint2 {
-                mint: nft_mint.to_account_info(),
+    {
+        let cpi_ctx = CpiContext::new(
+            ctx.accounts.associated_token_program.to_account_info(),
+            AtaCreate {
+                payer: ctx.accounts.authority.to_account_info(),
+                associated_token: ctx.accounts.token_account.to_account_info(),
+                authority: ctx.accounts.owner.to_account_info(),
+                mint: ctx.accounts.nft_mint.to_account_info(),
+                system_program: ctx.accounts.system_program.to_account_info(),
+                token_program: ctx.accounts.token_program.to_account_info(),
             },
-            signer_seeds,
-        ),
-        0,                    // decimals
-        &authority.key(),         // mint_authority
-        None,                 // freeze_authority
-    )?;
+        );
+        associated_token::create(cpi_ctx)?;
+    }
 
-    // 3) Mint 1 token to owner's ATA (created above with init_if_needed)
+    // 1) Mint 1 to ATA
     token::mint_to(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
-            MintTo {
-                mint: nft_mint.to_account_info(),
+            token::MintTo {
+                mint: ctx.accounts.nft_mint.to_account_info(),
                 to: ctx.accounts.token_account.to_account_info(),
-                authority: authority.to_account_info(), // mint authority
+                authority: ctx.accounts.ticket_account.to_account_info(),
             },
             signer_seeds,
         ),
@@ -138,14 +137,12 @@ pub fn handler(
     )?;
 
     // Set up ticket account
-    ticket.event = ctx.accounts.event_account.key();
-    ticket.owner = ctx.accounts.owner.key();
-    ticket.stage = TicketStage::Qr; // Start as QR stage
-    ticket.seat = seat.map(|mut s| {
-        s.truncate(TicketAccount::MAX_SEAT_LEN);
-        s
-    });
-    ticket.nft_mint = nft_mint.key(); // Link to NFT
+    let ticket = &mut ctx.accounts.ticket_account;
+    ticket.event = event_key;
+    ticket.owner = owner_key;
+    ticket.stage = TicketStage::Qr;
+    ticket.seat = seat.map(|mut s| { s.truncate(32); s });
+    ticket.nft_mint = ctx.accounts.nft_mint.key();
     ticket.is_listed = false;
     ticket.bump = ticket_bump;
 
@@ -156,20 +153,38 @@ pub fn handler(
         share: 100,
     }];
 
-    let metadata_uri = ticket.stage.get_http_metadata_uri(&_event.name, ticket.seat.as_ref());
-    let name = ticket.stage.get_name(&_event.name, ticket.seat.as_ref());
-    let symbol = "TIX".to_string(); // Or a dynamic symbol
+    // Helper to clamp string bytes
+    fn clamp_bytes(mut s: String, max: usize) -> String {
+        if s.len() > max {
+            let mut cut = max;
+            while !s.is_char_boundary(cut) { cut -= 1; }
+            s.truncate(cut);
+        }
+        s
+    }
+
+    let mut metadata_uri = if let Some(uri) = metadata_uri_override {
+        uri
+    } else {
+        ticket.stage.get_http_metadata_uri(&_event.name, ticket.seat.as_ref())
+    };
+
+    // Enforce Metaplex length limits
+    let mut name = ticket.stage.get_name(&_event.name, ticket.seat.as_ref());
+    name = clamp_bytes(name, 32);
+
+    let mut symbol = "TIX".to_string();
+    symbol = clamp_bytes(symbol, 10);
+
+    metadata_uri = clamp_bytes(metadata_uri, 200);
 
     let data_v2 = DataV2 {
         name,
         symbol,
         uri: metadata_uri,
-        seller_fee_basis_points: 500, // 5% royalties
+        seller_fee_basis_points: 500,
         creators: Some(creators),
-        collection: Some(Collection {
-            verified: false,
-            key: _event.key(),
-        }),
+        collection: None,
         uses: None,
     };
     
@@ -181,7 +196,7 @@ pub fn handler(
     let metadat_ix = CreateMetadataAccountV3 {
         metadata: ctx.accounts.metadata.key(),
         mint: nft_mint.key(),
-        mint_authority: authority.key(),
+        mint_authority: ctx.accounts.ticket_account.key(),
         payer: authority.key(),
         update_authority: (authority.key(), true).into(),
         system_program: ctx.accounts.system_program.key(),
@@ -192,7 +207,7 @@ pub fn handler(
         ctx.accounts.token_metadata_program.to_account_info(), // Metaplex Program
         ctx.accounts.metadata.to_account_info(),
         nft_mint.to_account_info(),
-        authority.to_account_info(), // mint authority
+        ctx.accounts.ticket_account.to_account_info(), // mint authority
         authority.to_account_info(), // payer
         authority.to_account_info(), // update authority
         ctx.accounts.system_program.to_account_info(),
@@ -203,13 +218,13 @@ pub fn handler(
 
     // Create Master Edition
     let master_edition_args = CreateMasterEditionV3InstructionArgs {
-        max_supply: None,
+        max_supply: Some(0),
     };
     let master_edition_ix = CreateMasterEditionV3 {
         edition: ctx.accounts.master_edition.key(),
         mint: nft_mint.key(),
         update_authority: authority.key(),
-        mint_authority: authority.key(),
+        mint_authority: ctx.accounts.ticket_account.key(), // PDA is mint authority
         payer: authority.key(),
         metadata: ctx.accounts.metadata.key(),
         token_program: ctx.accounts.token_program.key(),
@@ -222,7 +237,7 @@ pub fn handler(
         ctx.accounts.master_edition.to_account_info(), // edition account (PDA)
         nft_mint.to_account_info(),
         authority.to_account_info(), // update authority
-        authority.to_account_info(), // mint authority
+        ctx.accounts.ticket_account.to_account_info(), // mint authority
         authority.to_account_info(), // payer
         ctx.accounts.metadata.to_account_info(),
         ctx.accounts.token_program.to_account_info(),

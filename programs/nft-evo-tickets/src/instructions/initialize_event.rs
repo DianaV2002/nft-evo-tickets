@@ -13,7 +13,7 @@ pub struct InitializeEventCtx<'info> {
     #[account(
         init,
         payer = authority,
-        space = EventAccount::SPACE,
+        space = 8 + EventAccount::INIT_SPACE,
         seeds = [PROGRAM_SEED.as_bytes(), EVENT_SEED.as_bytes(), &event_id.to_le_bytes()],
         bump
     )]
@@ -28,7 +28,9 @@ pub fn handler(
     start_ts: i64,
     end_ts: i64,
 ) -> Result<()> {
-    require!(name.len() <= EventAccount::MAX_NAME_LEN, ErrorCode::InvalidInput);
+    // Basic validation
+    require!(name.len() <= 64, ErrorCode::InvalidInput);
+    require!(end_ts > start_ts, ErrorCode::InvalidInput);
 
     let event_account = &mut ctx.accounts.event_account;
     event_account.authority = ctx.accounts.authority.key();
