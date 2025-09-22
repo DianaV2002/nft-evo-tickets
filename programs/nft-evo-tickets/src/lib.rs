@@ -5,7 +5,7 @@ pub mod error;
 pub mod state;
 pub mod instructions;
 
-declare_id!("G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr");
+declare_id!("D6jGyHw9JhJ1z4N8ouTkmhyuBafHKaUYcmH8PyjkfGBY");
 
 pub use instructions::*;
 pub use state::*;

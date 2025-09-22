@@ -4,7 +4,8 @@ import bs58 from "bs58";
 export async function getBundlr(solSecretKeyB58: string) {
   const secretKey = bs58.decode(solSecretKeyB58.trim());
   // endpoint can be node1/node2; currency "solana"
-  const bundlr = new Bundlr("https://node1.bundlr.network", "solana", secretKey);
+  const bundlr = new Bundlr("https://devnet.bundlr.network", "solana", secretKey, 
+  { providerUrl : "https://api.devnet.solana.com" });
   await bundlr.ready();
   return bundlr;
 }

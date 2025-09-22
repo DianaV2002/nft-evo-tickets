@@ -6,10 +6,10 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-nft_evo_tickets = "G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr"
+nft_evo_tickets = "D6jGyHw9JhJ1z4N8ouTkmhyuBafHKaUYcmH8PyjkfGBY"
 
 [programs.localnet]
-nft_evo_tickets = "6cDRhNow2KUm5MuC6vVVATDN6MTq7S6vLzFcJracCvYB"
+nft_evo_tickets = "G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr"
 
 [registry]
 url = "https://api.apr.dev"
