@@ -1,16 +1,21 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::{rent::Rent, program::{invoke, invoke_signed}};
-use anchor_lang::solana_program::system_instruction;
-use anchor_spl::{associated_token::AssociatedToken,
-    token::{self, Mint, MintTo, Token, TokenAccount},
+use anchor_lang::solana_program::program::invoke_signed;
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token::{self, Mint, Token, TokenAccount},
 };
-use anchor_spl::associated_token::{self, Create as AtaCreate};
-use mpl_token_metadata::instructions::{CreateMasterEditionV3, CreateMasterEditionV3InstructionArgs, CreateMetadataAccountV3, CreateMetadataAccountV3InstructionArgs};
-use mpl_token_metadata::types::{Collection, Creator, DataV2};
-use anchor_spl::token::spl_token::state::Mint as SplTokenMint;
+use mpl_token_metadata::{
+    instructions::{
+        CreateMasterEditionV3, CreateMasterEditionV3InstructionArgs, CreateMetadataAccountV3,
+        CreateMetadataAccountV3InstructionArgs,
+    },
+    types::{Creator, DataV2},
+};
 
-use crate::constants::{PROGRAM_SEED, TICKET_SEED};
-use crate::state::{EventAccount, TicketAccount, TicketStage};
+use crate::{
+    constants::{PROGRAM_SEED, TICKET_SEED},
+    state::{EventAccount, TicketAccount, TicketStage},
+};
 
 #[derive(Accounts)]
 #[instruction(seat: Option<String>)]
@@ -36,7 +41,8 @@ pub struct MintTicketCtx<'info> {
     pub ticket_account: Account<'info, TicketAccount>,
 
     /// Future ticket owner (no signature required)
-    pub owner: SystemAccount<'info>,
+    /// CHECK: This is not checked in the handler
+    pub owner: UncheckedAccount<'info>,
 
     /// The mint account for the NFT ticket. It will be initialized by the program.
     #[account(
@@ -68,8 +74,13 @@ pub struct MintTicketCtx<'info> {
 
     /// CHECK: Owner's ATA for `nft_mint`. We create it in the handler (after the mint is initialized)
     /// using the Associated Token Program and require it matches the canonical PDA. We don't deserialize it.
-    #[account(mut)]
-    pub token_account: UncheckedAccount<'info>,
+    #[account(
+        init_if_needed,
+        payer = authority,
+        associated_token::mint = nft_mint,
+        associated_token::authority = owner
+    )]
+    pub token_account: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -106,21 +117,6 @@ pub fn handler(
             &[ticket_bump],
         ]
     ];
-
-    {
-        let cpi_ctx = CpiContext::new(
-            ctx.accounts.associated_token_program.to_account_info(),
-            AtaCreate {
-                payer: ctx.accounts.authority.to_account_info(),
-                associated_token: ctx.accounts.token_account.to_account_info(),
-                authority: ctx.accounts.owner.to_account_info(),
-                mint: ctx.accounts.nft_mint.to_account_info(),
-                system_program: ctx.accounts.system_program.to_account_info(),
-                token_program: ctx.accounts.token_program.to_account_info(),
-            },
-        );
-        associated_token::create(cpi_ctx)?;
-    }
 
     // 1) Mint 1 to ATA
     token::mint_to(

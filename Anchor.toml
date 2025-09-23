@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-nft_evo_tickets = "D6jGyHw9JhJ1z4N8ouTkmhyuBafHKaUYcmH8PyjkfGBY"
+nft_evo_tickets = "G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr"
 
 [programs.localnet]
 nft_evo_tickets = "G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr"
