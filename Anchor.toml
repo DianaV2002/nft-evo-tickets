@@ -5,15 +5,18 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
+[programs.devnet]
+nft_evo_tickets = "G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr"
+
 [programs.localnet]
-nft_evo_tickets = "5MAXo56hQiQGL9hd9HJi9xdUnJNLXor3XYyK9kC4bNBn"
+nft_evo_tickets = "G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/nft-evo-tickets.ts"
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/setup.ts tests/nft-evo-tickets.ts"

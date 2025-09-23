@@ -1,0 +1,67 @@
+use anchor_lang::prelude::*;
+
+// ---------- EventAccount ----------
+#[account]
+#[derive(InitSpace)]
+pub struct EventAccount {
+    pub authority: Pubkey,
+    pub event_id: u64,
+    #[max_len(64)]
+    pub name: String,
+    pub start_ts: i64,
+    pub end_ts: i64,
+    pub bump: u8,
+}
+
+// ---------- TicketAccount ----------
+#[account]
+#[derive(InitSpace)]
+pub struct TicketAccount {
+    pub event: Pubkey,
+    pub owner: Pubkey,
+    pub nft_mint: Pubkey,
+    #[max_len(32)]
+    pub seat: Option<String>,
+    pub stage: TicketStage,
+    pub is_listed: bool,
+    pub listing_price: Option<u64>,
+    pub listing_expires_at: Option<i64>,
+    pub bump: u8,
+}
+
+// ---------- Enum ----------
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
+#[repr(u8)] //1 byte
+pub enum TicketStage {
+    Qr = 0,
+}
+
+impl TicketStage {
+    pub fn get_http_metadata_uri(&self, event_name: &str, seat: Option<&String>) -> String {
+        match self {
+            TicketStage::Qr => get_qr_code_metadata_uri(event_name, seat),
+        }
+    }
+
+    pub fn get_name(&self, event_name: &str, seat: Option<&String>) -> String {
+        match self {
+            TicketStage::Qr => format!("TIX • {} • {}", event_name, seat.map_or("".to_string(), |s| s.clone())),
+        }
+    }
+}
+
+fn get_qr_code_metadata_uri(event_name: &str, seat: Option<&String>) -> String {
+    format!("https://example.com/tickets/qr/{}/{}/metadata.json", event_name.replace(" ", "-"), seat.map_or("".to_string(), |s| s.clone()))
+}
+
+// ---------- ListingAccount ----------
+#[account]
+#[derive(InitSpace)]
+pub struct ListingAccount {
+    pub ticket: Pubkey,
+    pub seller: Pubkey,
+    pub price_lamports: u64,
+    pub created_at: i64,
+    pub expires_at: Option<i64>,
+    pub bump: u8,
+}
