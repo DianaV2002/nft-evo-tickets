@@ -249,6 +249,163 @@ describe("nft-evo-tickets", function() {
 
   });
 
+   it("Buy ticket", async () => {
+    // 1. Create event, mint and list a ticket
+    const eventId = new anchor.BN(Date.now() + Math.random() * 1000 + 3000);
+    const eventName = "Concert for Buying Test";
+    const startTs = new anchor.BN(Math.floor(Date.now() / 1000) + 3600);
+    const endTs = new anchor.BN(Math.floor(Date.now() / 1000) + 7200);
+    const sellerSecret = JSON.parse(fs.readFileSync("tests/fixtures/seller.json", "utf-8"));
+    const buyerSecret = JSON.parse(fs.readFileSync("tests/fixtures/buyer.json", "utf-8"));
+    const seller = Keypair.fromSecretKey(Uint8Array.from(sellerSecret));
+    const buyer = Keypair.fromSecretKey(Uint8Array.from(buyerSecret));
+
+    // Fund seller and buyer accounts
+    // Airdropping is commented out for manual funding to avoid rate limits.
+    // await provider.connection.requestAirdrop(seller.publicKey, 2 * LAMPORTS_PER_SOL);
+    // await provider.connection.requestAirdrop(buyer.publicKey, 2 * LAMPORTS_PER_SOL);
+    // await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for airdrop to settle
+
+    // Create event
+    const [eventPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("nft-evo-tickets"), Buffer.from("event"), eventId.toArrayLike(Buffer, "le", 8)],
+        program.programId
+    );
+    await program.methods
+        .createEvent(eventId, eventName, startTs, endTs)
+        .accounts({ organizer: seller.publicKey, eventAccount: eventPda, systemProgram: SystemProgram.programId })
+        .signers([seller])
+        .rpc();
+
+    // Mint ticket
+    const [ticketPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("nft-evo-tickets"), Buffer.from("ticket"), eventPda.toBuffer(), seller.publicKey.toBuffer()],
+        program.programId
+    );
+    const [nftMint] = PublicKey.findProgramAddressSync(
+        [Buffer.from("nft-evo-tickets"), Buffer.from("nft-mint"), eventPda.toBuffer(), seller.publicKey.toBuffer()],
+        program.programId
+    );
+
+    const [metadataPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("metadata"), new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").toBuffer(), nftMint.toBuffer()],
+      new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
+    );
+
+    const [masterEditionPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("metadata"), new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").toBuffer(), nftMint.toBuffer(), Buffer.from("edition")],
+      new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
+    );
+
+    const [tokenAccountPda] = PublicKey.findProgramAddressSync(
+      [seller.publicKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), nftMint.toBuffer()],
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    await program.methods
+        .mintTicket("C3", "http://some.uri/for-buy-test.json")
+        .accounts({
+            authority: seller.publicKey,
+            eventAccount: eventPda,
+            ticketAccount: ticketPda,
+            owner: seller.publicKey,
+            nftMint: nftMint,
+            metadata: metadataPda,
+            masterEdition: masterEditionPda,
+            tokenAccount: tokenAccountPda,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+            tokenMetadataProgram: new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"),
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        })
+        .signers([seller])
+        .rpc({ skipPreflight: true });
+
+    // List ticket
+    const priceLamports = new anchor.BN(1 * LAMPORTS_PER_SOL);
+    const [listingPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("nft-evo-tickets"), Buffer.from("listing"), ticketPda.toBuffer()],
+        program.programId
+    );
+    const [sellerNftAccount] = PublicKey.findProgramAddressSync(
+        [seller.publicKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), nftMint.toBuffer()],
+        ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    const [escrowNftAccount] = PublicKey.findProgramAddressSync(
+        [listingPda.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), nftMint.toBuffer()],
+        ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    await program.methods
+        .listTicket(priceLamports, null)
+        .accounts({
+            seller: seller.publicKey,
+            ticketAccount: ticketPda,
+            eventAccount: eventPda,
+            listingAccount: listingPda,
+            nftMint: nftMint,
+            sellerNftAccount: sellerNftAccount,
+            escrowNftAccount: escrowNftAccount,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        })
+        .signers([seller])
+        .rpc();
+
+    console.log("Ticket listed for buying test.");
+
+    // 2. Buyer buys the ticket
+    const [buyerNftAccount] = PublicKey.findProgramAddressSync(
+        [buyer.publicKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), nftMint.toBuffer()],
+        ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    const sellerInitialBalance = await provider.connection.getBalance(seller.publicKey);
+
+    const tx = await program.methods
+        .buyTicket()
+        .accounts({
+            buyer: buyer.publicKey,
+            ticketAccount: ticketPda,
+            listingAccount: listingPda,
+            eventAccount: eventPda,
+            seller: seller.publicKey,
+            nftMint: nftMint,
+            escrowNftAccount: escrowNftAccount,
+            buyerNftAccount: buyerNftAccount,
+            // eventAuthority: seller.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        })
+        .signers([buyer])
+        .rpc();
+    
+    console.log("\nTicket bought successfully!");
+    console.log("Transaction signature:", tx);
+
+    // 3. Verify state
+    const ticketAccount = await program.account.ticketAccount.fetch(ticketPda);
+    console.log("\n  - New ticket owner:", ticketAccount.owner.toString());
+    console.log("  - Buyer public key:", buyer.publicKey.toString());
+    if (ticketAccount.owner.toString() !== buyer.publicKey.toString()) throw new Error("Ownership transfer failed.");
+
+    console.log("  - Is listed:", ticketAccount.isListed);
+    if (ticketAccount.isListed) throw new Error("Ticket should not be listed anymore.");
+
+    const buyerToken = await provider.connection.getTokenAccountBalance(buyerNftAccount);
+    console.log("  - Buyer NFT balance:", buyerToken.value.amount);
+    if (buyerToken.value.amount !== "1") throw new Error("NFT not transferred to buyer.");
+
+    const sellerFinalBalance = await provider.connection.getBalance(seller.publicKey);
+    console.log("  - Seller final balance:", sellerFinalBalance / LAMPORTS_PER_SOL);
+    if (sellerFinalBalance <= sellerInitialBalance) throw new Error("Seller was not paid.");
+
+  });
+  
   it("Updates ticket stage correctly (Authority to QR, Scanner to Scanned)", async () => {
     // 1. Setup: Create an event and mint a ticket
     const eventId = new anchor.BN(Date.now() + Math.random() * 1000 + 4000);
