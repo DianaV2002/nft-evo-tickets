@@ -37,6 +37,7 @@ pub struct BuyTicketCtx<'info> {
     /// Event account for validation
     pub event_account: Account<'info, EventAccount>,
     
+    #[account(mut)]
     pub seller: SystemAccount<'info>,
     
     pub nft_mint: Account<'info, Mint>,
@@ -58,7 +59,7 @@ pub struct BuyTicketCtx<'info> {
     )]
     pub buyer_nft_account: Account<'info, TokenAccount>,
     
-    pub event_authority: Option<SystemAccount<'info>>,
+    // pub event_authority: Option<SystemAccount<'info>>,
     
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
@@ -100,6 +101,7 @@ pub fn handler(ctx: Context<BuyTicketCtx>) -> Result<()> {
     )?;
 
    // Pay fee (if any)
+   /*
     if let Some(event_authority) = &ctx.accounts.event_authority {
         if fee_amount > 0 {
             system_program::transfer(
@@ -114,6 +116,7 @@ pub fn handler(ctx: Context<BuyTicketCtx>) -> Result<()> {
             )?;
         }
     }
+    */
     
     // Transfer NFT from escrow to buyer
     let cpi_accounts = Transfer {
