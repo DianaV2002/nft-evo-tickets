@@ -228,4 +228,141 @@ describe("nft-evo-tickets", function() {
       console.log("  - Is Listed:", ticketAccount.isListed);
 
   });
+
+  it("List ticket for sale", async () => {
+    // 1. Create an event and mint a ticket first
+    const eventId = new anchor.BN(Date.now() + Math.random() * 1000 + 2000);
+    const eventName = "Concert for Listing Test";
+    const startTs = new anchor.BN(Math.floor(Date.now() / 1000) + 3600);
+    const endTs = new anchor.BN(Math.floor(Date.now() / 1000) + 7200);
+    const seller = provider.wallet!.publicKey;
+
+    const [eventPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("nft-evo-tickets"), Buffer.from("event"), eventId.toArrayLike(Buffer, "le", 8)],
+      program.programId
+    );
+
+    await program.methods
+      .createEvent(eventId, eventName, startTs, endTs)
+      .accounts({ organizer: seller, eventAccount: eventPda, systemProgram: SystemProgram.programId })
+      .rpc();
+
+    console.log("Event created for listing test");
+
+    const [ticketPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("nft-evo-tickets"), Buffer.from("ticket"), eventPda.toBuffer(), seller.toBuffer()],
+      program.programId
+    );
+
+    const [nftMint] = PublicKey.findProgramAddressSync(
+      [Buffer.from("nft-evo-tickets"), Buffer.from("nft-mint"), eventPda.toBuffer(), seller.toBuffer()],
+      program.programId
+    );
+    
+    const [metadataPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("metadata"), new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").toBuffer(), nftMint.toBuffer()],
+      new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
+    );
+
+    const [masterEditionPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("metadata"), new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").toBuffer(), nftMint.toBuffer(), Buffer.from("edition")],
+      new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
+    );
+
+    const [tokenAccountPda] = PublicKey.findProgramAddressSync(
+      [seller.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), nftMint.toBuffer()],
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    // Mint the ticket (simplified metadata)
+    const txMint = await program.methods
+    .mintTicket("B2", "https://arweave.net/some-random-uri-for-listing")
+    .accounts({
+        authority: seller,
+        eventAccount: eventPda,
+        ticketAccount: ticketPda,
+        owner: seller,
+        nftMint: nftMint,
+        metadata: metadataPda,
+        masterEdition: masterEditionPda,
+        tokenAccount: tokenAccountPda,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        tokenMetadataProgram: new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"),
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      })
+      .rpc({
+        skipPreflight: true
+      });
+      
+    console.log("Ticket minted for listing test:", txMint);
+
+    // 2. Prepare accounts for listing
+    const priceLamports = new anchor.BN(1 * LAMPORTS_PER_SOL); // 1 SOL
+    const expiresAt = new anchor.BN(Math.floor(Date.now() / 1000) + 3600 * 24); // 24 hours from now
+
+    const [listingPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("nft-evo-tickets"), Buffer.from("listing"), ticketPda.toBuffer()],
+      program.programId
+    );
+
+    const [sellerNftAccount] = PublicKey.findProgramAddressSync(
+        [seller.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), nftMint.toBuffer()],
+        ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    const [escrowNftAccount] = PublicKey.findProgramAddressSync(
+        [listingPda.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), nftMint.toBuffer()],
+        ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    console.log("\nAccount addresses for listing:");
+    console.log("  - Seller:", seller.toString());
+    console.log("  - Ticket:", ticketPda.toString());
+    console.log("  - Listing:", listingPda.toString());
+    console.log("  - NFT Mint:", nftMint.toString());
+    console.log("  - Seller NFT Account:", sellerNftAccount.toString());
+    console.log("  - Escrow NFT Account:", escrowNftAccount.toString());
+
+    // 3. Call the list_ticket instruction
+    const tx = await program.methods
+      .listTicket(priceLamports, expiresAt)
+      .accounts({
+        seller: seller,
+        ticketAccount: ticketPda,
+        eventAccount: eventPda,
+        listingAccount: listingPda,
+        nftMint: nftMint,
+        sellerNftAccount: sellerNftAccount,
+        escrowNftAccount: escrowNftAccount,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      })
+      .rpc();
+    
+    console.log("\nTicket listed successfully!");
+    console.log("Transaction signature:", tx);
+
+    // 4. Verify the state
+    const ticketAccount = await program.account.ticketAccount.fetch(ticketPda);
+    const listingAccount = await program.account.listingAccount.fetch(listingPda);
+    
+    console.log("\nVerification:");
+    console.log("  - Ticket isListed:", ticketAccount.isListed);
+    if (!ticketAccount.isListed) throw new Error("Verification failed: Ticket is not marked as listed.");
+    
+    console.log("  - Listing Price:", listingAccount.priceLamports.toString());
+    if (listingAccount.priceLamports.toString() !== priceLamports.toString()) throw new Error("Verification failed: Listing price mismatch.");
+
+    console.log("  - Listing Seller:", listingAccount.seller.toString());
+    if (listingAccount.seller.toString() !== seller.toString()) throw new Error("Verification failed: Seller mismatch.");
+
+    const escrowToken = await provider.connection.getTokenAccountBalance(escrowNftAccount);
+    console.log("  - Escrow NFT balance:", escrowToken.value.amount);
+    if (escrowToken.value.amount !== "1") throw new Error("Verification failed: NFT not in escrow.");
+
+  });
 });

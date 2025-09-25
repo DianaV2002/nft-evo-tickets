@@ -33,21 +33,28 @@ pub struct TicketAccount {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
 #[repr(u8)] //1 byte
 pub enum TicketStage {
-    Qr = 0,
+    Prestige = 0,
+    Qr = 1,
 }
 
 impl TicketStage {
     pub fn get_http_metadata_uri(&self, event_name: &str, seat: Option<&String>) -> String {
         match self {
+            TicketStage::Prestige => get_prestige_metadata_uri(event_name, seat),
             TicketStage::Qr => get_qr_code_metadata_uri(event_name, seat),
         }
     }
 
     pub fn get_name(&self, event_name: &str, seat: Option<&String>) -> String {
         match self {
+            TicketStage::Prestige => format!("TIX • {} • {}", event_name, seat.map_or("".to_string(), |s| s.clone())),
             TicketStage::Qr => format!("TIX • {} • {}", event_name, seat.map_or("".to_string(), |s| s.clone())),
         }
     }
+}
+
+fn get_prestige_metadata_uri(event_name: &str, seat: Option<&String>) -> String {
+    format!("https://example.com/tickets/prestige/{}/{}/metadata.json", event_name.replace(" ", "-"), seat.map_or("".to_string(), |s| s.clone()))
 }
 
 fn get_qr_code_metadata_uri(event_name: &str, seat: Option<&String>) -> String {

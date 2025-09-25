@@ -136,7 +136,7 @@ pub fn handler(
     let ticket = &mut ctx.accounts.ticket_account;
     ticket.event = event_key;
     ticket.owner = owner_key;
-    ticket.stage = TicketStage::Qr;
+    ticket.stage = TicketStage::Prestige;
     ticket.seat = seat.map(|mut s| { s.truncate(32); s });
     ticket.nft_mint = ctx.accounts.nft_mint.key();
     ticket.is_listed = false;
