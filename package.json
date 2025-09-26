@@ -15,12 +15,13 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@bundlr-network/client": "^0.11.11",
     "@coral-xyz/anchor": "^0.31.0",
     "@solana/spl-token": "^0.4.0",
     "@solana/web3.js": "^1.89.1",
-    "@bundlr-network/client": "^0.11.11",
     "bs58": "^5.0.0",
     "dotenv": "^16.4.5",
+    "pinata": "^2.5.0",
     "rpc-websockets": "^4.1.2"
   },
   "devDependencies": {

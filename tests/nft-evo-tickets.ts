@@ -10,7 +10,7 @@ dotenv.config();
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import fs from "fs";
 import path from "path";
-import { getBundlr, uploadJsonToArweave, uploadPngToArweave, ensureBundlrFunds } from "./helpers/arweave";
+import { getPinataClient, uploadCompleteNFTToPinata } from "./helpers/pinata";
 
 async function ensureBalance(conn: Connection, pubkey: PublicKey, wantLamports: number) {
   const bal = await conn.getBalance(pubkey);
@@ -33,7 +33,7 @@ describe("nft-evo-tickets", function() {
   anchor.setProvider(anchor.AnchorProvider.env());
 
   before(async function() {
-    await ensureBalance(provider.connection, provider.wallet!.publicKey, 1 * LAMPORTS_PER_SOL);
+    await ensureBalance(provider.connection, provider.wallet!.publicKey, 0.1 * LAMPORTS_PER_SOL);
   });
 
   const program = anchor.workspace.NftEvoTickets as Program<NftEvoTickets>;
@@ -141,7 +141,7 @@ describe("nft-evo-tickets", function() {
     const balance = await provider.connection.getBalance(provider.wallet!.publicKey);
     console.log(`Current balance: ${balance / LAMPORTS_PER_SOL} SOL`);
     
-    if (balance < 0.5 * LAMPORTS_PER_SOL) {
+    if (balance < 0.05 * LAMPORTS_PER_SOL) {
       console.log("Insufficient balance for minting. Please fund your wallet or try again later.");
       throw new Error("Insufficient balance for minting");
     }
@@ -156,44 +156,41 @@ describe("nft-evo-tickets", function() {
       { trait_type: "Stage", value: "QR" },
     ];
 
-    // (Optional) upload an image to Arweave first
-    console.log("BUNDLR_SOLANA_SECRET_KEY_B58:", process.env.BUNDLR_SOLANA_SECRET_KEY_B58);
-    const bundlr = await getBundlr(process.env.BUNDLR_SOLANA_SECRET_KEY_B58!);
-    // Prepare an image buffer or skip if you don’t want images
+    // Upload image and metadata to Pinata (IPFS)
+    console.log("PINATA_JWT:", process.env.PINATA_JWT ? "[SET]" : "[NOT SET]");
+
+    const pinataClient = await getPinataClient(process.env.PINATA_JWT!);
+
     const imagePath = path.join(__dirname, "fixtures", "ticket.png");
     const haveImage = fs.existsSync(imagePath);
-    let imageUrl: string | undefined = undefined;
 
-    if (haveImage) {
-      const png = fs.readFileSync(imagePath);
-      await ensureBundlrFunds(bundlr, png.length + 2048);
-      const img = await uploadPngToArweave(bundlr, png);
-      imageUrl = img.url; // e.g. https://arweave.net/<imgId>
+    if (!haveImage) {
+      throw new Error(`Image file not found at ${imagePath}`);
     }
+
+    const png = fs.readFileSync(imagePath);
 
     const metadata = {
       name,
       symbol,
       description,
-      image: imageUrl, // or omit if none
       external_url: `https://example.com/events/${eventPda.toBase58()}`,
       attributes,
       properties: {
         category: "ticket",
-        files: imageUrl ? [{ uri: imageUrl, type: "image/png" }] : [],
       },
     };
 
-    const jsonBytes = Buffer.byteLength(JSON.stringify(metadata), "utf8");
-    await ensureBundlrFunds(bundlr, jsonBytes + 2048);
-    const { url: arweaveUri } = await uploadJsonToArweave(bundlr, metadata);
+    // Upload both image and metadata to Pinata
+    const { imageUrl, metadataUrl } = await uploadCompleteNFTToPinata(pinataClient, png, metadata);
 
-    // Log for sanity:
-    console.log("Arweave metadata:", arweaveUri);
+    console.log("Pinata IPFS URLs:");
+    console.log("  Image:", imageUrl);
+    console.log("  Metadata:", metadataUrl);
 
-    // --- Call your instruction with URI override ---
+    // --- Call your instruction with metadata URI ---
     const tx = await program.methods
-      .mintTicket("A1", arweaveUri) // pass override
+      .mintTicket("A1", metadataUrl) // pass Pinata metadata URL
       .accounts({
         authority: provider.wallet!.publicKey,
         eventAccount: eventPda,

@@ -1,15 +1,15 @@
 [toolchain]
-package_manager = "yarn"
+anchor_version = "0.31.1"
 
 [features]
 resolution = true
 skip-lint = false
 
 [programs.devnet]
-nft_evo_tickets = "G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr"
+nft_evo_tickets = "2epW2RyDJZwUe3AahRSuKB2usqPzqm1qckPP7KPkLg3c"
 
 [programs.localnet]
-nft_evo_tickets = "G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr"
+nft_evo_tickets = "2epW2RyDJZwUe3AahRSuKB2usqPzqm1qckPP7KPkLg3c"
 
 [registry]
 url = "https://api.apr.dev"

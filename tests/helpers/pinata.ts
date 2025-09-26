@@ -1,0 +1,82 @@
+import { PinataSDK } from "pinata";
+
+export async function getPinataClient(jwt: string): Promise<PinataSDK> {
+  if (!jwt || jwt === 'undefined' || jwt === '[NOT SET]') {
+    throw new Error('PINATA_JWT is required. Get one from https://pinata.cloud');
+  }
+
+  if (!jwt.startsWith('eyJ')) {
+    throw new Error('Invalid Pinata JWT format. Should start with "eyJ". Get a valid JWT from https://pinata.cloud');
+  }
+
+  const pinata = new PinataSDK({
+    pinataJwt: jwt,
+    pinataGateway: "gateway.pinata.cloud"
+  });
+
+  return pinata;
+}
+
+export async function uploadImageToPinata(client: PinataSDK, imageBuffer: Buffer, filename: string = 'ticket.png'): Promise<string> {
+  console.log(`Uploading image to Pinata (${imageBuffer.length} bytes)...`);
+
+  try {
+    const file = new File([imageBuffer], filename, { type: 'image/png' });
+
+    const upload = await client.upload.public.file(file);
+
+    const url = `https://gateway.pinata.cloud/ipfs/${upload.cid}`;
+    console.log(`Image uploaded to IPFS: ${url}`);
+
+    return url;
+  } catch (error) {
+    console.error('Failed to upload image to Pinata:', error);
+    throw error;
+  }
+}
+
+export async function uploadMetadataToPinata(client: PinataSDK, metadata: any): Promise<string> {
+  console.log('Uploading metadata to Pinata...');
+
+  try {
+    const upload = await client.upload.public.json(metadata);
+
+    const url = `https://gateway.pinata.cloud/ipfs/${upload.cid}`;
+    console.log(`Metadata uploaded to IPFS: ${url}`);
+    console.log('Metadata content:', metadata);
+
+    return url;
+  } catch (error) {
+    console.error('Failed to upload metadata to Pinata:', error);
+    throw error;
+  }
+}
+
+export async function uploadCompleteNFTToPinata(
+  client: PinataSDK,
+  imageBuffer: Buffer,
+  metadata: any,
+  imageName: string = 'ticket.png'
+): Promise<{ imageUrl: string; metadataUrl: string }> {
+  console.log('Uploading complete NFT to Pinata...');
+
+  // First upload the image
+  const imageUrl = await uploadImageToPinata(client, imageBuffer, imageName);
+
+  // Update metadata with the image URL
+  const updatedMetadata = {
+    ...metadata,
+    image: imageUrl,
+    properties: {
+      ...metadata.properties,
+      files: [
+        { uri: imageUrl, type: 'image/png' }
+      ]
+    }
+  };
+
+  // Upload the metadata
+  const metadataUrl = await uploadMetadataToPinata(client, updatedMetadata);
+
+  return { imageUrl, metadataUrl };
+}
