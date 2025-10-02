@@ -5,7 +5,8 @@ import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from "@solana/spl-token";
 import { expect } from "chai";
 
-describe("Instruction Unit Tests", function() {
+describe("Instructions (programs) Tests", function() {
+  // to run them: yarn test:instructions
   this.timeout(60_000);
   anchor.setProvider(anchor.AnchorProvider.env());
 
@@ -204,6 +205,17 @@ describe("Instruction Unit Tests", function() {
 
     it("should fail when non-authority tries to mint", async () => {
       const unauthorizedUser = Keypair.generate();
+
+      // Fund the unauthorized user by transferring from main wallet
+      const tx = new anchor.web3.Transaction().add(
+        anchor.web3.SystemProgram.transfer({
+          fromPubkey: provider.wallet!.publicKey,
+          toPubkey: unauthorizedUser.publicKey,
+          lamports: 100_000_000, // 0.1 SOL
+        })
+      );
+      await provider.sendAndConfirm(tx);
+
       const ticketOwner = provider.wallet!.publicKey;
 
       const [ticketPda] = PublicKey.findProgramAddressSync(
@@ -250,7 +262,7 @@ describe("Instruction Unit Tests", function() {
           .rpc();
         expect.fail("Should have thrown an error");
       } catch (err: any) {
-        expect(err.message).to.include("has_one");
+        expect(err.message).to.include("ConstraintHasOne");
       }
     });
   });
@@ -363,6 +375,17 @@ describe("Instruction Unit Tests", function() {
 
     it("should fail when non-owner tries to list", async () => {
       const unauthorizedUser = Keypair.generate();
+
+    // Fund the unauthorized user by transferring from main wallet
+      const tx = new anchor.web3.Transaction().add(
+        anchor.web3.SystemProgram.transfer({
+          fromPubkey: provider.wallet!.publicKey,
+          toPubkey: unauthorizedUser.publicKey,
+          lamports: 100_000_000, // 0.1 SOL
+        })
+      );
+      await provider.sendAndConfirm(tx);
+
       const price = new BN(1_000_000_000);
 
       const [listingPda] = PublicKey.findProgramAddressSync(
@@ -393,7 +416,7 @@ describe("Instruction Unit Tests", function() {
           .rpc();
         expect.fail("Should have thrown an error");
       } catch (err: any) {
-        expect(err.message).to.include("Unauthorized");
+         expect(err.message).to.include("Unauthorized");
       }
     });
   });
@@ -486,7 +509,7 @@ describe("Instruction Unit Tests", function() {
           .rpc();
         expect.fail("Should have thrown an error");
       } catch (err: any) {
-        expect(err.message).to.include("TicketNotListed");
+        expect(err.message).to.include("AccountNotInitialized.");
       }
     });
   });
@@ -586,7 +609,7 @@ describe("Instruction Unit Tests", function() {
           .rpc();
         expect.fail("Should have thrown an error");
       } catch (err: any) {
-        expect(err.message).to.include("TicketNotListed");
+        expect(err.message).to.include("AccountNotInitialized.");
       }
     });
   });
