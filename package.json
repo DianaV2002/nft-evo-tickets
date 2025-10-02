@@ -6,6 +6,8 @@
   "types": "index.ts",
   "scripts": {
     "test": "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/setup.ts tests/nft-evo-tickets.ts",
+    "test:instructions": "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/setup.ts tests/instructions.test.ts",
+    "test:all": "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/setup.ts tests/**/*.ts",
     "lint:fix": "solana-prettier-rust --check programs/**/*.rs && prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml}"
   },
   "keywords": [
