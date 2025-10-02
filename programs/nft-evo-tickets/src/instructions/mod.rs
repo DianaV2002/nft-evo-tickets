@@ -18,3 +18,12 @@ pub use buy_ticket::{BuyTicketCtx, handler as buy_ticket_handler};
 
 pub mod cancel_listing;
 pub use cancel_listing::{CancelListingCtx, handler as cancel_listing_handler};
+
+pub mod update_ticket;
+pub use update_ticket::{UpdateTicket, handler as update_ticket_handler};
+
+pub mod upgrade_to_collectible;
+pub use upgrade_to_collectible::{UpgradeToCollectible, handler as upgrade_to_collectible_handler};
+
+pub mod set_scanner;
+pub use set_scanner::{SetScanner, handler as set_scanner_handler};

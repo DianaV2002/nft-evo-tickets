@@ -10,7 +10,6 @@ declare_id!("G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr");
 pub use instructions::*;
 pub use state::*;
 
-// Explicitly import Anchor's generated client account types
 use crate::instructions::initialize::__client_accounts_initialize_ctx;
 use crate::instructions::initialize_event::__client_accounts_initialize_event_ctx;
 use crate::instructions::create_event::__client_accounts_create_event_ctx;
@@ -18,6 +17,9 @@ use crate::instructions::mint_ticket::__client_accounts_mint_ticket_ctx;
 use crate::instructions::list_ticket::__client_accounts_list_ticket_ctx;
 use crate::instructions::buy_ticket::__client_accounts_buy_ticket_ctx;
 use crate::instructions::cancel_listing::__client_accounts_cancel_listing_ctx;
+use crate::instructions::update_ticket::__client_accounts_update_ticket;
+use crate::instructions::upgrade_to_collectible::__client_accounts_upgrade_to_collectible;
+use crate::instructions::set_scanner::__client_accounts_set_scanner;
 
 #[program]
 pub mod nft_evo_tickets {
@@ -71,4 +73,15 @@ pub mod nft_evo_tickets {
         cancel_listing_handler(ctx)
     }
 
+    pub fn update_ticket(ctx: Context<UpdateTicket>, new_stage: TicketStage) -> Result<()> {
+        update_ticket_handler(ctx, new_stage)
+    }
+
+    pub fn upgrade_to_collectible(ctx: Context<UpgradeToCollectible>) -> Result<()> {
+        upgrade_to_collectible_handler(ctx)
+    }
+
+    pub fn set_scanner(ctx: Context<SetScanner>, scanner: Pubkey) -> Result<()> {
+        set_scanner_handler(ctx, scanner)
+    }
 }
