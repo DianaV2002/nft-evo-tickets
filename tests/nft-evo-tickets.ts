@@ -13,18 +13,27 @@ import path from "path";
 import { getPinataClient, uploadCompleteNFTToPinataWithTemporaryUrls } from "./helpers/pinata";
 import QRCode from "qrcode";
 
-async function ensureBalance(conn: Connection, pubkey: PublicKey, wantLamports: number) {
-  const bal = await conn.getBalance(pubkey);
+async function ensureBalance(provider: anchor.AnchorProvider, pubkey: PublicKey, wantLamports: number) {
+  const bal = await provider.connection.getBalance(pubkey);
   if (bal >= wantLamports) return;
 
-  console.log(`Balance for ${pubkey.toBase58()} is ${bal / LAMPORTS_PER_SOL} SOL. Requesting airdrop...`);
+  const amountToFund = wantLamports - bal;
+  if (amountToFund <= 0) return;
+
+  console.log(`Balance for ${pubkey.toBase58()} is ${bal / LAMPORTS_PER_SOL} SOL. Funding with ${amountToFund / LAMPORTS_PER_SOL} SOL from main wallet...`);
   try {
-    const signature = await conn.requestAirdrop(pubkey, wantLamports - bal);
-    await conn.confirmTransaction(signature);
-    console.log("Airdrop successful.");
+    const tx = new anchor.web3.Transaction().add(
+      anchor.web3.SystemProgram.transfer({
+        fromPubkey: provider.wallet.publicKey,
+        toPubkey: pubkey,
+        lamports: amountToFund,
+      })
+    );
+    await provider.sendAndConfirm(tx);
+    console.log("Funding successful.");
   } catch (error) {
-    console.error(`Airdrop failed for ${pubkey.toBase58()}:`, error);
-    throw new Error("Airdrop failed. Please fund your wallet manually or try again later if on a rate-limited network.");
+    console.error(`Funding failed for ${pubkey.toBase58()}:`, error);
+    throw new Error("Funding failed. Please ensure the main wallet has enough SOL.");
   }
 }
 
@@ -33,12 +42,12 @@ describe("nft-evo-tickets", function() {
   this.timeout(120_000);   // 2 minutes
   anchor.setProvider(anchor.AnchorProvider.env());
 
-  before(async function() {
-    await ensureBalance(provider.connection, provider.wallet!.publicKey, 0.1 * LAMPORTS_PER_SOL);
-  });
-
+  const provider = anchor.getProvider() as anchor.AnchorProvider;
   const program = anchor.workspace.NftEvoTickets as Program<NftEvoTickets>;
-  const provider = anchor.getProvider();
+
+  before(async function() {
+    await ensureBalance(provider, provider.wallet!.publicKey, 0.1 * LAMPORTS_PER_SOL);
+  });
 
   it("Initialize program", async () => {
     const tx = await program.methods.initialize().rpc();
@@ -239,4 +248,263 @@ describe("nft-evo-tickets", function() {
       console.log("  - Is Listed:", ticketAccount.isListed);
 
   });
+
+  it("Updates ticket stage correctly (Authority to QR, Scanner to Scanned)", async () => {
+    // 1. Setup: Create an event and mint a ticket
+    const eventId = new anchor.BN(Date.now() + Math.random() * 1000 + 4000);
+    const eventName = "Evo Test Fest";
+    const startTs = new anchor.BN(Math.floor(Date.now() / 1000) + 3600); // 1 hour from now
+    const endTs = new anchor.BN(Math.floor(Date.now() / 1000) + 7200); // 2 hours from now
+    const authority = provider.wallet!.publicKey;
+    const scanner = Keypair.generate();
+    const ticketOwner = Keypair.generate();
+
+    await ensureBalance(provider, ticketOwner.publicKey, 1 * LAMPORTS_PER_SOL);
+
+    const [eventPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("nft-evo-tickets"), Buffer.from("event"), eventId.toArrayLike(Buffer, "le", 8)],
+      program.programId
+    );
+
+    // Create event with a scanner
+    await program.methods
+      .createEvent(eventId, eventName, startTs, endTs)
+      .accounts({ organizer: authority, eventAccount: eventPda, systemProgram: SystemProgram.programId })
+      .rpc();
+    
+    await program.methods
+        .setScanner(scanner.publicKey)
+        .accounts({
+            authority: authority,
+            eventAccount: eventPda,
+        })
+        .rpc();
+
+    // Mint ticket
+    // Mint the ticket
+    const [ticketPda, nftMint, metadataPda, masterEditionPda, tokenAccountPda] = await mintTestTicket(program, eventPda, authority, ticketOwner.publicKey);
+
+    // 2. Test: Authority updates stage to QR
+    await program.methods
+      .updateTicket({ qr: {} })
+      .accounts({
+        signer: authority,
+        eventAccount: eventPda,
+        ticketAccount: ticketPda,
+        authority: authority,
+        scanner: scanner.publicKey,
+      })
+      .rpc();
+
+    let ticketAccount = await program.account.ticketAccount.fetch(ticketPda);
+    if (JSON.stringify(ticketAccount.stage) !== JSON.stringify({ qr: {} })) {
+        throw new Error("Stage should be QR");
+    }
+    console.log("Ticket stage updated to QR by authority.");
+
+    // 3. Test: Scanner updates stage to Scanned
+    await program.methods
+        .updateTicket({ scanned: {} })
+        .accounts({
+            signer: scanner.publicKey,
+            eventAccount: eventPda,
+            ticketAccount: ticketPda,
+            authority: authority,
+            scanner: scanner.publicKey,
+        })
+        .signers([scanner])
+        .rpc();
+
+    ticketAccount = await program.account.ticketAccount.fetch(ticketPda);
+    if (JSON.stringify(ticketAccount.stage) !== JSON.stringify({ scanned: {} })) {
+        throw new Error("Stage should be Scanned");
+    }
+    if (!ticketAccount.wasScanned) {
+        throw new Error("wasScanned should be true");
+    }
+    console.log("Ticket stage updated to Scanned by scanner.");
+  });
+
+  it("Upgrades a scanned ticket to a collectible", async () => {
+    // Reuse event from "Create event" test
+    const eventId = new anchor.BN(Date.now() + Math.random() * 1000);
+    const eventName = "Test Concert 2024";
+    const startTs = new anchor.BN(Math.floor(Date.now() / 1000) + 3600);
+    const endTs = new anchor.BN(Math.floor(Date.now() / 1000) + 7200);
+    const authority = provider.wallet!.publicKey;
+    const scanner = Keypair.generate();
+    const ticketOwner = Keypair.generate();
+
+    await ensureBalance(provider, ticketOwner.publicKey, 1 * LAMPORTS_PER_SOL);
+
+    const [eventPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("nft-evo-tickets"), Buffer.from("event"), eventId.toArrayLike(Buffer, "le", 8)],
+      program.programId
+    );
+
+    // Create event and set scanner
+    await program.methods
+      .createEvent(eventId, eventName, startTs, endTs)
+      .accounts({ organizer: authority, eventAccount: eventPda, systemProgram: SystemProgram.programId })
+      .rpc();
+
+    await program.methods
+        .setScanner(scanner.publicKey)
+        .accounts({ authority: authority, eventAccount: eventPda })
+        .rpc();
+
+    // Mint and scan ticket
+    const [ticketPda] = await mintTestTicket(program, eventPda, authority, ticketOwner.publicKey);
+    await program.methods
+        .updateTicket({ qr: {} })
+        .accounts({ signer: authority, eventAccount: eventPda, ticketAccount: ticketPda, authority: authority, scanner: scanner.publicKey })
+        .rpc();
+    await program.methods
+        .updateTicket({ scanned: {} })
+        .accounts({ signer: scanner.publicKey, eventAccount: eventPda, ticketAccount: ticketPda, authority: authority, scanner: scanner.publicKey })
+        .signers([scanner])
+        .rpc();
+
+    // Upgrade to Collectible
+    await program.methods
+      .upgradeToCollectible()
+      .accounts({
+        user: ticketOwner.publicKey,
+        eventAccount: eventPda,
+        ticketAccount: ticketPda,
+      })
+      .signers([ticketOwner])
+      .rpc();
+
+    const ticketAccount = await program.account.ticketAccount.fetch(ticketPda);
+    if (JSON.stringify(ticketAccount.stage) !== JSON.stringify({ collectible: {} })) {
+        throw new Error("Stage should be Collectible");
+    }
+    console.log("Ticket successfully upgraded to Collectible.");
+  });
+
+  it("Updates ticket stage correctly (Authority to QR, Scanner to Scanned)", async () => {
+    // 1. Setup: Create an event and mint a ticket
+    const eventId = new anchor.BN(Date.now() + Math.random() * 1000 + 4000);
+    const eventName = "Evo Test Fest";
+    const startTs = new anchor.BN(Math.floor(Date.now() / 1000) + 3600); // 1 hour from now
+    const endTs = new anchor.BN(Math.floor(Date.now() / 1000) + 7200); // 2 hours from now
+    const authority = provider.wallet!.publicKey;
+    const scanner = Keypair.generate();
+    const ticketOwner = Keypair.generate();
+
+    await ensureBalance(provider, ticketOwner.publicKey, 1 * LAMPORTS_PER_SOL);
+
+    const [eventPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("nft-evo-tickets"), Buffer.from("event"), eventId.toArrayLike(Buffer, "le", 8)],
+      program.programId
+    );
+
+    // Create event with a scanner
+    await program.methods
+      .createEvent(eventId, eventName, startTs, endTs)
+      .accounts({ organizer: authority, eventAccount: eventPda, systemProgram: SystemProgram.programId })
+      .rpc();
+    
+    await program.methods
+        .setScanner(scanner.publicKey)
+        .accounts({
+            authority: authority,
+            eventAccount: eventPda,
+        })
+        .rpc();
+
+    // Mint ticket
+    // Mint the ticket
+    const [ticketPda, nftMint, metadataPda, masterEditionPda, tokenAccountPda] = await mintTestTicket(program, eventPda, authority, ticketOwner.publicKey);
+
+    // 2. Test: Authority updates stage to QR
+    await program.methods
+      .updateTicket({ qr: {} })
+      .accounts({
+        signer: authority,
+        eventAccount: eventPda,
+        ticketAccount: ticketPda,
+        authority: authority,
+        scanner: scanner.publicKey,
+      })
+      .rpc();
+
+    let ticketAccount = await program.account.ticketAccount.fetch(ticketPda);
+    if (JSON.stringify(ticketAccount.stage) !== JSON.stringify({ qr: {} })) {
+        throw new Error("Stage should be QR");
+    }
+    console.log("Ticket stage updated to QR by authority.");
+
+    // 3. Test: Scanner updates stage to Scanned
+    await program.methods
+        .updateTicket({ scanned: {} })
+        .accounts({
+            signer: scanner.publicKey,
+            eventAccount: eventPda,
+            ticketAccount: ticketPda,
+            authority: authority,
+            scanner: scanner.publicKey,
+        })
+        .signers([scanner])
+        .rpc();
+
+    ticketAccount = await program.account.ticketAccount.fetch(ticketPda);
+    if (JSON.stringify(ticketAccount.stage) !== JSON.stringify({ scanned: {} })) {
+        throw new Error("Stage should be Scanned");
+    }
+    if (!ticketAccount.wasScanned) {
+        throw new Error("wasScanned should be true");
+    }
+    console.log("Ticket stage updated to Scanned by scanner.");
+  });
 });
+
+async function mintTestTicket(
+    program: Program<NftEvoTickets>, 
+    eventPda: PublicKey, 
+    authority: PublicKey, 
+    ticketOwner: PublicKey
+): Promise<[PublicKey, PublicKey, PublicKey, PublicKey, PublicKey]> {
+    const [ticketPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("nft-evo-tickets"), Buffer.from("ticket"), eventPda.toBuffer(), ticketOwner.toBuffer()],
+        program.programId
+    );
+    const [nftMint] = PublicKey.findProgramAddressSync(
+        [Buffer.from("nft-evo-tickets"), Buffer.from("nft-mint"), eventPda.toBuffer(), ticketOwner.toBuffer()],
+        program.programId
+    );
+    const [metadataPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("metadata"), new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").toBuffer(), nftMint.toBuffer()],
+        new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
+    );
+    const [masterEditionPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("metadata"), new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").toBuffer(), nftMint.toBuffer(), Buffer.from("edition")],
+        new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
+    );
+    const [tokenAccountPda] = PublicKey.findProgramAddressSync(
+        [ticketOwner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), nftMint.toBuffer()],
+        ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    await program.methods
+        .mintTicket("TestSeat", null)
+        .accounts({
+            authority: authority,
+            eventAccount: eventPda,
+            ticketAccount: ticketPda,
+            owner: ticketOwner,
+            nftMint: nftMint,
+            metadata: metadataPda,
+            masterEdition: masterEditionPda,
+            tokenAccount: tokenAccountPda,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+            tokenMetadataProgram: new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"),
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        })
+        .rpc({ skipPreflight: true });
+
+    return [ticketPda, nftMint, metadataPda, masterEditionPda, tokenAccountPda];
+}
