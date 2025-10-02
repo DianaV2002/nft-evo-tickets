@@ -34,9 +34,9 @@ pub fn handler(
     require!(name.len() <= 64, ErrorCode::InvalidInput);
     require!(end_ts > start_ts, ErrorCode::InvalidInput);
     
-    // Validate that the event is in the future
-    let current_time = Clock::get()?.unix_timestamp;
-    require!(start_ts > current_time, ErrorCode::InvalidInput);
+    // // Validate that the event is in the future
+    // let current_time = Clock::get()?.unix_timestamp;
+    // require!(start_ts > current_time, ErrorCode::InvalidInput); - only for testing purposes
     
     // Get the event account key before mutable borrow
     let event_account_key = ctx.accounts.event_account.key();

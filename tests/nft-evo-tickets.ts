@@ -28,7 +28,7 @@ async function ensureBalance(provider: anchor.AnchorProvider, pubkey: PublicKey,
         lamports: amountToFund,
       })
     );
-    await provider.sendAndConfirm(tx);
+    await provider.sendAndConfirm(tx); // avoid 429 errors
     console.log("Funding successful.");
   } catch (error) {
     console.error(`Funding failed for ${pubkey.toBase58()}:`, error);
