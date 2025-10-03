@@ -48,7 +48,6 @@ async function ensureBalance(provider: anchor.AnchorProvider, pubkey: PublicKey,
     console.error(`Funding failed for ${pubkey.toBase58()}:`, error);
     throw new Error("Funding failed. Please ensure the wallet has enough SOL or airdrop is available.");
   }
-  }
 }
 
 describe("nft-evo-tickets", function() {
