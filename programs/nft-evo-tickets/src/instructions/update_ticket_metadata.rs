@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::Mint;
-use mpl_token_metadata::instruction::{update_metadata_accounts_v2};
-use solana_program::program::invoke_signed;
+use mpl_token_metadata::instructions::{UpdateMetadataAccountV2, UpdateMetadataAccountV2InstructionArgs};
+use anchor_lang::solana_program::program::invoke_signed;
 
 use crate::state::{EventAccount, TicketAccount, TicketStage};
 use crate::error::ErrorCode;
@@ -71,20 +71,23 @@ pub fn handler(ctx: Context<UpdateTicketMetadata>, new_stage: TicketStage, new_u
     // --- CPI to Metaplex to update URI ---
     msg!("Updating metadata URI to: {}", new_uri);
 
+    let authority_key = authority.key();
+    let event_id_bytes = event_account.event_id.to_le_bytes();
+    let bump_bytes = [event_account.bump];
     let seeds = &[
         "event".as_bytes(),
-        authority.key().as_ref(),
-        &event_account.event_id.to_le_bytes(),
-        &[event_account.bump],
+        authority_key.as_ref(),
+        &event_id_bytes,
+        &bump_bytes,
     ];
     let signer_seeds = &[&seeds[..]];
 
-    let ix = update_metadata_accounts_v2(
-        *ctx.accounts.token_metadata_program.key,
-        *ctx.accounts.metadata_account.key,
-        event_account.key(), // The event account is the update authority
-        None, // new_update_authority
-        Some(mpl_token_metadata::state::DataV2 {
+    let ix = UpdateMetadataAccountV2 {
+        metadata: *ctx.accounts.metadata_account.key,
+        update_authority: event_account.key(),
+    }
+    .instruction(UpdateMetadataAccountV2InstructionArgs {
+        data: Some(mpl_token_metadata::types::DataV2 {
             name: ctx.accounts.event_account.name.clone(), // Keep the name
             symbol: "EVOT".to_string(), // Keep the symbol
             uri: new_uri, // The new URI
@@ -93,9 +96,10 @@ pub fn handler(ctx: Context<UpdateTicketMetadata>, new_stage: TicketStage, new_u
             collection: None,
             uses: None,
         }),
-        Some(true), // primary_sale_happened
-        Some(true), // is_mutable
-    );
+        new_update_authority: None,
+        primary_sale_happened: Some(true),
+        is_mutable: Some(true),
+    });
 
     invoke_signed(
         &ix,

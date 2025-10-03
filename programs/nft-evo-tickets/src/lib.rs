@@ -83,7 +83,7 @@ pub mod nft_evo_tickets {
         new_stage: TicketStage,
         new_uri: String,
     ) -> Result<()> {
-        update_ticket_metadata::handler(ctx, new_stage, new_uri)
+        update_ticket_metadata_handler(ctx, new_stage, new_uri)
     }
 
     pub fn upgrade_to_collectible(ctx: Context<UpgradeToCollectible>) -> Result<()> {
