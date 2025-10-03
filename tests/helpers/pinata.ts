@@ -20,7 +20,7 @@ export async function getPinataClient(jwt: string, gateway?: string): Promise<Pi
 export async function uploadImageToPinata(client: PinataSDK, imageBuffer: Buffer, filename: string = 'ticket.png'): Promise<string> {
   console.log(`Uploading image to Pinata (${imageBuffer.length} bytes)...`);
 
-  try {x
+  try {
     const file = new File([imageBuffer], filename, { type: 'image/png' });
 
     const upload = await client.upload.public.file(file);

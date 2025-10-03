@@ -6,4 +6,4 @@ node_modules
 test-ledger
 .yarn
 .env
-qr-code.png
+**/qr-code.png

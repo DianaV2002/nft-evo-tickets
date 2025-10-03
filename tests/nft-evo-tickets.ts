@@ -13,8 +13,8 @@ import path from "path";
 import { getPinataClient, uploadCompleteNFTToPinataWithTemporaryUrls } from "./helpers/pinata";
 import QRCode from "qrcode";
 
-async function ensureBalance(provider: anchor.AnchorProvider, pubkey: PublicKey, wantLamports: number) {
-  const bal = await provider.connection.getBalance(pubkey);
+async function ensureBalance(conn: Connection, pubkey: PublicKey, wantLamports: number) {
+  const bal = await conn.getBalance(pubkey);
   if (bal >= wantLamports) return;
 
   const amountToFund = wantLamports - bal;
@@ -23,17 +23,18 @@ async function ensureBalance(provider: anchor.AnchorProvider, pubkey: PublicKey,
   console.log(`Balance for ${pubkey.toBase58()} is ${bal / LAMPORTS_PER_SOL} SOL. Funding with ${amountToFund / LAMPORTS_PER_SOL} SOL...`);
 
   // Check if we're on localnet by checking the RPC URL
-  const rpcUrl = provider.connection.rpcEndpoint;
+  const rpcUrl = conn.rpcEndpoint;
   const isLocalnet = rpcUrl.includes("localhost") || rpcUrl.includes("127.0.0.1");
 
   try {
     if (isLocalnet) {
       // On localnet, use airdrop
-      const signature = await provider.connection.requestAirdrop(pubkey, amountToFund);
-      await provider.connection.confirmTransaction(signature);
+      const signature = await conn.requestAirdrop(pubkey, amountToFund);
+      await conn.confirmTransaction(signature);
       console.log("Airdrop successful.");
     } else {
       // On devnet/mainnet, transfer from main wallet
+      const provider = anchor.getProvider();
       const tx = new anchor.web3.Transaction().add(
         anchor.web3.SystemProgram.transfer({
           fromPubkey: provider.wallet.publicKey,
@@ -55,12 +56,13 @@ describe("nft-evo-tickets", function() {
   this.timeout(120_000);   // 2 minutes
   anchor.setProvider(anchor.AnchorProvider.env());
 
-  const provider = anchor.getProvider() as anchor.AnchorProvider;
-  const program = anchor.workspace.NftEvoTickets as Program<NftEvoTickets>;
+  const provider = anchor.getProvider();
 
   before(async function() {
-    await ensureBalance(provider, provider.wallet!.publicKey, 0.1 * LAMPORTS_PER_SOL);
+    await ensureBalance(provider.connection, provider.wallet!.publicKey, 0.1 * LAMPORTS_PER_SOL);
   });
+
+  const program = anchor.workspace.NftEvoTickets as Program<NftEvoTickets>;
 
   it("Initialize program", async () => {
     const tx = await program.methods.initialize().rpc();
@@ -186,7 +188,6 @@ describe("nft-evo-tickets", function() {
 
     const imagePath = path.join(__dirname, "fixtures", "ticket.png");
     const haveImage = fs.existsSync(imagePath);
-
     if (!haveImage) {
       throw new Error(`Image file not found at ${imagePath}`);
     }
@@ -274,8 +275,8 @@ describe("nft-evo-tickets", function() {
     const buyer = Keypair.fromSecretKey(Uint8Array.from(buyerSecret));
 
     // Fund seller and buyer accounts
-    await ensureBalance(provider, seller.publicKey, 2 * LAMPORTS_PER_SOL);
-    await ensureBalance(provider, buyer.publicKey, 2 * LAMPORTS_PER_SOL);
+    await ensureBalance(provider.connection, seller.publicKey, 2 * LAMPORTS_PER_SOL);
+    await ensureBalance(provider.connection, buyer.publicKey, 2 * LAMPORTS_PER_SOL);
 
     // Create event
     const [eventPda] = PublicKey.findProgramAddressSync(
@@ -332,6 +333,26 @@ describe("nft-evo-tickets", function() {
         })
         .signers([seller])
         .rpc({ skipPreflight: true });
+
+    // Update ticket to QR stage before listing
+    const scanner = Keypair.generate();
+    await program.methods
+        .setScanner(scanner.publicKey)
+        .accounts({ authority: seller.publicKey, eventAccount: eventPda })
+        .signers([seller])
+        .rpc();
+
+    await program.methods
+        .updateTicket({ qr: {} })
+        .accounts({
+            signer: seller.publicKey,
+            eventAccount: eventPda,
+            ticketAccount: ticketPda,
+            authority: seller.publicKey,
+            scanner: scanner.publicKey,
+        })
+        .signers([seller])
+        .rpc();
 
     // List ticket
     const priceLamports = new anchor.BN(1 * LAMPORTS_PER_SOL);
@@ -427,7 +448,7 @@ describe("nft-evo-tickets", function() {
     const scanner = Keypair.generate();
     const ticketOwner = Keypair.generate();
 
-    await ensureBalance(provider, ticketOwner.publicKey, 1 * LAMPORTS_PER_SOL);
+    await ensureBalance(provider.connection, ticketOwner.publicKey, 1 * LAMPORTS_PER_SOL);
 
     const [eventPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("nft-evo-tickets"), Buffer.from("event"), eventId.toArrayLike(Buffer, "le", 8)],
@@ -503,7 +524,7 @@ describe("nft-evo-tickets", function() {
     const scanner = Keypair.generate();
     const ticketOwner = Keypair.generate();
 
-    await ensureBalance(provider, ticketOwner.publicKey, 1 * LAMPORTS_PER_SOL);
+    await ensureBalance(provider.connection, ticketOwner.publicKey, 1 * LAMPORTS_PER_SOL);
 
     const [eventPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("nft-evo-tickets"), Buffer.from("event"), eventId.toArrayLike(Buffer, "le", 8)],
