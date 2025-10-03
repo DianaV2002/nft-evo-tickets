@@ -19,7 +19,7 @@ pub struct ListTicketCtx<'info> {
         mut,
         constraint = ticket_account.owner == seller.key() @ ErrorCode::Unauthorized,
         constraint = !ticket_account.is_listed @ ErrorCode::TicketAlreadyListed,
-        constraint = ticket_account.stage != TicketStage::Qr @ ErrorCode::CannotListInCurrentStage
+        constraint = ticket_account.stage == TicketStage::Qr @ ErrorCode::CannotListInCurrentStage
     )]
     pub ticket_account: Account<'info, TicketAccount>,
     

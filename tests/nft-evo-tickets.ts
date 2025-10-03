@@ -20,20 +20,33 @@ async function ensureBalance(provider: anchor.AnchorProvider, pubkey: PublicKey,
   const amountToFund = wantLamports - bal;
   if (amountToFund <= 0) return;
 
-  console.log(`Balance for ${pubkey.toBase58()} is ${bal / LAMPORTS_PER_SOL} SOL. Funding with ${amountToFund / LAMPORTS_PER_SOL} SOL from main wallet...`);
+  console.log(`Balance for ${pubkey.toBase58()} is ${bal / LAMPORTS_PER_SOL} SOL. Funding with ${amountToFund / LAMPORTS_PER_SOL} SOL...`);
+
+  // Check if we're on localnet by checking the RPC URL
+  const rpcUrl = provider.connection.rpcEndpoint;
+  const isLocalnet = rpcUrl.includes("localhost") || rpcUrl.includes("127.0.0.1");
+
   try {
-    const tx = new anchor.web3.Transaction().add(
-      anchor.web3.SystemProgram.transfer({
-        fromPubkey: provider.wallet.publicKey,
-        toPubkey: pubkey,
-        lamports: amountToFund,
-      })
-    );
-    await provider.sendAndConfirm(tx);
-    console.log("Funding successful.");
+    if (isLocalnet) {
+      // On localnet, use airdrop
+      const signature = await provider.connection.requestAirdrop(pubkey, amountToFund);
+      await provider.connection.confirmTransaction(signature);
+      console.log("Airdrop successful.");
+    } else {
+      // On devnet/mainnet, transfer from main wallet
+      const tx = new anchor.web3.Transaction().add(
+        anchor.web3.SystemProgram.transfer({
+          fromPubkey: provider.wallet.publicKey,
+          toPubkey: pubkey,
+          lamports: amountToFund,
+        })
+      );
+      await provider.sendAndConfirm(tx);
+      console.log("Funding successful.");
+    }
   } catch (error) {
     console.error(`Funding failed for ${pubkey.toBase58()}:`, error);
-    throw new Error("Funding failed. Please ensure the main wallet has enough SOL.");
+    throw new Error("Funding failed. Please ensure the wallet has enough SOL or airdrop is available.");
   }
 }
 
@@ -261,10 +274,8 @@ describe("nft-evo-tickets", function() {
     const buyer = Keypair.fromSecretKey(Uint8Array.from(buyerSecret));
 
     // Fund seller and buyer accounts
-    // Airdropping is commented out for manual funding to avoid rate limits.
-    // await provider.connection.requestAirdrop(seller.publicKey, 2 * LAMPORTS_PER_SOL);
-    // await provider.connection.requestAirdrop(buyer.publicKey, 2 * LAMPORTS_PER_SOL);
-    // await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for airdrop to settle
+    await ensureBalance(provider, seller.publicKey, 2 * LAMPORTS_PER_SOL);
+    await ensureBalance(provider, buyer.publicKey, 2 * LAMPORTS_PER_SOL);
 
     // Create event
     const [eventPda] = PublicKey.findProgramAddressSync(
@@ -483,11 +494,11 @@ describe("nft-evo-tickets", function() {
   });
 
   it("Upgrades a scanned ticket to a collectible", async () => {
-    // Reuse event from "Create event" test
+    // Create event that ends quickly for testing
     const eventId = new anchor.BN(Date.now() + Math.random() * 1000);
     const eventName = "Test Concert 2024";
-    const startTs = new anchor.BN(Math.floor(Date.now() / 1000) + 3600);
-    const endTs = new anchor.BN(Math.floor(Date.now() / 1000) + 7200);
+    const startTs = new anchor.BN(Math.floor(Date.now() / 1000) + 1);
+    const endTs = new anchor.BN(Math.floor(Date.now() / 1000) + 2);
     const authority = provider.wallet!.publicKey;
     const scanner = Keypair.generate();
     const ticketOwner = Keypair.generate();
@@ -521,6 +532,10 @@ describe("nft-evo-tickets", function() {
         .accounts({ signer: scanner.publicKey, eventAccount: eventPda, ticketAccount: ticketPda, authority: authority, scanner: scanner.publicKey })
         .signers([scanner])
         .rpc();
+
+    // Wait for event to end
+    console.log("Waiting for event to end...");
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     // Upgrade to Collectible
     await program.methods
