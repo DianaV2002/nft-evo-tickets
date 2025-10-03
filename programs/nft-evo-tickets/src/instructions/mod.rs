@@ -20,6 +20,7 @@ pub mod cancel_listing;
 pub use cancel_listing::{CancelListingCtx, handler as cancel_listing_handler};
 
 pub mod update_ticket;
+pub mod update_ticket_metadata;
 pub use update_ticket::{UpdateTicket, handler as update_ticket_handler};
 
 pub mod upgrade_to_collectible;

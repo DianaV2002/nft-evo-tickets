@@ -18,6 +18,7 @@ use crate::instructions::list_ticket::__client_accounts_list_ticket_ctx;
 use crate::instructions::buy_ticket::__client_accounts_buy_ticket_ctx;
 use crate::instructions::cancel_listing::__client_accounts_cancel_listing_ctx;
 use crate::instructions::update_ticket::__client_accounts_update_ticket;
+use crate::instructions::update_ticket_metadata::__client_accounts_update_ticket_metadata;
 use crate::instructions::upgrade_to_collectible::__client_accounts_upgrade_to_collectible;
 use crate::instructions::set_scanner::__client_accounts_set_scanner;
 
@@ -75,6 +76,14 @@ pub mod nft_evo_tickets {
 
     pub fn update_ticket(ctx: Context<UpdateTicket>, new_stage: TicketStage) -> Result<()> {
         update_ticket_handler(ctx, new_stage)
+    }
+
+    pub fn update_ticket_metadata(
+        ctx: Context<UpdateTicketMetadata>,
+        new_stage: TicketStage,
+        new_uri: String,
+    ) -> Result<()> {
+        update_ticket_metadata::handler(ctx, new_stage, new_uri)
     }
 
     pub fn upgrade_to_collectible(ctx: Context<UpgradeToCollectible>) -> Result<()> {
