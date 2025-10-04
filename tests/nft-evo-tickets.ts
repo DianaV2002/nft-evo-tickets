@@ -10,7 +10,7 @@ dotenv.config();
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import fs from "fs";
 import path from "path";
-import { getPinataClient, uploadCompleteNFTToPinataWithTemporaryUrls } from "./helpers/pinata";
+import { getPinataClient, uploadCompleteNFTToPinata } from "./helpers/pinata";
 import QRCode from "qrcode";
 
 async function ensureBalance(conn: Connection, pubkey: PublicKey, wantLamports: number) {
@@ -205,29 +205,27 @@ describe("nft-evo-tickets", function() {
       },
     };
 
-      // Upload both image and metadata to Pinata with temporary URLs (20 seconds validity)
-      const { imageUrl, metadataUrl, temporaryImageUrl, temporaryMetadataUrl } = await uploadCompleteNFTToPinataWithTemporaryUrls(pinataClient, png, metadata, 'ticket.png', 20);
+    // Upload both image and metadata to Pinata as PUBLIC (permanently pinned)
+    const { imageUrl, metadataUrl } = await uploadCompleteNFTToPinata(pinataClient, png, metadata, 'ticket.png');
 
-    console.log("Pinata IPFS URLs:");
+    console.log("Pinata IPFS URLs (Permanent & Public):");
     console.log("  Image:", imageUrl);
     console.log("  Metadata:", metadataUrl);
-    console.log("Temporary URLs (20s validity):");
-    console.log("  Temporary Image:", temporaryImageUrl);
-    console.log("  Temporary Metadata:", temporaryMetadataUrl);
 
-    // Generate QR code from metadata URL
-    const qrCodeDataUrl = await QRCode.toDataURL(metadataUrl);
-    console.log("\nQR Code (as data URL):");
+    // Generate QR code from NFT MINT ADDRESS (not metadata URL)
+    const qrCodeDataUrl = await QRCode.toDataURL(nftMint.toString());
+    console.log("\nQR Code (as data URL) - Contains NFT Mint Address:");
     console.log(qrCodeDataUrl);
 
     // Save QR code as PNG file
     const qrCodePath = path.join(__dirname, "fixtures", "qr-code.png");
-    await QRCode.toFile(qrCodePath, metadataUrl);
+    await QRCode.toFile(qrCodePath, nftMint.toString());
     console.log("QR Code saved to:", qrCodePath);
+    console.log("QR Code contains NFT Mint:", nftMint.toString());
 
-    // --- Call your instruction with temporary metadata URI ---
+    // --- Call your instruction with permanent metadata URI ---
     const tx = await program.methods
-      .mintTicket("A1", temporaryMetadataUrl) // pass temporary Pinata metadata URL
+      .mintTicket("A1", metadataUrl) // pass permanent Pinata metadata URL
       .accounts({
         authority: provider.wallet!.publicKey,
         eventAccount: eventPda,

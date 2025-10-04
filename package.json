@@ -11,7 +11,9 @@
     "lint:fix": "solana-prettier-rust --check programs/**/*.rs && prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml}",
     "api": "npx tsx backend/ticket-check/server.ts",
     "api:dev": "npx tsx --watch backend/ticket-check/server.ts",
-    "ticket-check": "npx tsx --watch backend/ticket-check/server.ts"
+    "ticket-check": "npx tsx --watch backend/ticket-check/server.ts",
+    "validate-ticket": "npx tsx scripts/validate-ticket.ts",
+    "create-qr-ticket": "npx tsx scripts/create-qr-ticket.ts"
   },
   "keywords": [
     "solana",

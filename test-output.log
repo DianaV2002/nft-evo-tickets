@@ -1,0 +1,6 @@
+Deploying cluster: https://api.devnet.solana.com
+Upgrade authority: /home/g/.config/solana/id.json
+Deploying program "nft_evo_tickets"...
+Program path: /home/g/projects/nft-evo-tickets/target/deploy/nft_evo_tickets.so...
+Error: Account HvRCkFt42tRSUd7YrowtcN4hnMM2eRmMZHMM2aDJBDWV has insufficient funds for spend (3.31934232 SOL) + fee (0.0025 SOL)
+There was a problem deploying: Output { status: ExitStatus(unix_wait_status(256)), stdout: "", stderr: "" }.
