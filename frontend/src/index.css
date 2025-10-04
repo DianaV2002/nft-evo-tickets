@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Evo Tickets - 3D Spatial Design System */
+
+@layer base {
+  :root {
+    /* Wellness nature theme - earthy & serene */
+    --background: 40 15% 96%;
+    --foreground: 150 15% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 150 15% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 15% 15%;
+
+    /* Deep forest green primary */
+    --primary: 150 45% 35%;
+    --primary-foreground: 40 15% 96%;
+
+    /* Warm earth secondary */
+    --secondary: 35 40% 65%;
+    --secondary-foreground: 150 15% 15%;
+
+    --muted: 40 15% 88%;
+    --muted-foreground: 150 10% 45%;
+
+    /* Fresh moss accent */
+    --accent: 130 40% 55%;
+    --accent-foreground: 40 15% 96%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 40 15% 96%;
+
+    --border: 150 15% 85%;
+    --input: 40 15% 88%;
+    --ring: 150 45% 35%;
+
+    --radius: 1rem;
+
+    /* Natural gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(150 45% 35%), hsl(130 40% 55%));
+    --gradient-secondary: linear-gradient(135deg, hsl(35 40% 65%), hsl(45 35% 75%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100% / 0.9), hsl(40 15% 96% / 0.8));
+    --gradient-glass: linear-gradient(135deg, hsl(150 15% 15% / 0.05), hsl(150 15% 15% / 0.02));
+
+    /* Soft natural shadows */
+    --shadow-glass: 0 4px 20px 0 hsl(150 15% 15% / 0.08);
+    --shadow-neon: 0 0 15px hsl(150 45% 35% / 0.3);
+    --shadow-depth: 0 10px 30px -5px hsl(150 15% 15% / 0.15);
+    --shadow-card: 0 4px 12px -2px hsl(150 15% 15% / 0.1);
+
+    /* Sidebar */
+    --sidebar-background: 224 24% 10%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 270 91% 65%;
+    --sidebar-primary-foreground: 224 24% 8%;
+    --sidebar-accent: 224 24% 16%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 224 24% 20%;
+    --sidebar-ring: 270 91% 65%;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background: linear-gradient(180deg, hsla(45, 25%, 97%, 0.392), hsl(35 30% 92%));
+    min-height: 100vh;
+    @apply font-sans;
+  }
+}
+
+@layer components {
+  /* Nature Glass Card */
+  .glass-card {
+    @apply backdrop-blur-sm border;
+    background: var(--gradient-glass);
+    box-shadow: var(--shadow-glass);
+    border: 1px solid hsl(150 15% 15% / 0.1);
+  }
+
+  /* Soft natural glow */
+  .neon-glow {
+    box-shadow: var(--shadow-neon);
+  }
+
+  /* 3D Depth Shadow */
+  .depth-shadow {
+    box-shadow: var(--shadow-depth);
+  }
+
+  /* Spatial Hover Effect */
+  .spatial-hover {
+    @apply transition-all duration-300 ease-out;
+    transform: perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1);
+  }
+
+  .spatial-hover:hover {
+    transform: perspective(1000px) rotateX(-5deg) rotateY(5deg) scale(1.02);
+    box-shadow: var(--shadow-depth);
+  }
+
+  /* Gradient Text */
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Floating Animation */
+  .float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  /* Pulse Glow */
+  .pulse-glow {
+    animation: pulse-glow 2s infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 15px hsl(150 45% 35% / 0.2); }
+    50% { box-shadow: 0 0 25px hsl(150 45% 35% / 0.4); }
+  }
+}
