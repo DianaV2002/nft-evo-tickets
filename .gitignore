@@ -7,5 +7,3 @@ test-ledger
 .yarn
 .env
 **/qr-code.png
-package-lock.json
-yarn.lock
