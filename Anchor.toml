@@ -6,10 +6,10 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-nft_evo_tickets = "6mz15gSnFGTWzjHsveE8aFpVTKjdiLkVfQKtvFf1CGdc"
+nft_evo_tickets = "G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr"
 
 [programs.localnet]
-nft_evo_tickets = "6mz15gSnFGTWzjHsveE8aFpVTKjdiLkVfQKtvFf1CGdc"
+nft_evo_tickets = "G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr"
 
 [registry]
 url = "https://api.apr.dev"
@@ -22,6 +22,7 @@ wallet = "~/.config/solana/id.json"
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/setup.ts tests/nft-evo-tickets.ts"
 
 [test.validator]
+startup_wait = 3000
 url = "https://api.devnet.solana.com"
 
 [[test.validator.clone]]

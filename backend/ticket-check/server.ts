@@ -300,10 +300,10 @@ async function start() {
   try {
     await initializeProgram();
     app.listen(PORT, () => {
-      console.log(`🚀 Secure Ticket API running on port ${PORT}`);
-      console.log(`📡 Cluster: ${CLUSTER}`);
-      console.log(`🔒 Security: Helmet, CORS, Rate Limiting enabled`);
-      console.log(`\n📚 Endpoints:`);
+      console.log(`Secure Ticket API running on port ${PORT}`);
+      console.log(`Cluster: ${CLUSTER}`);
+      console.log(`Security: Helmet, CORS, Rate Limiting enabled`);
+      console.log(`\nEndpoints:`);
       console.log(`   GET  /health`);
       console.log(`   GET  /api/ticket/:publicKey`);
       console.log(`   GET  /api/owner/:publicKey/tickets`);

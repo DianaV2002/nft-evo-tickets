@@ -181,10 +181,12 @@ describe("nft-evo-tickets", function() {
       { trait_type: "Stage", value: "QR" },
     ];
 
-    // Upload image and metadata to Pinata (IPFS)
+    // Upload image and metadata to Pinata (IPFS) or use mock URLs for testing
     console.log("PINATA_JWT:", process.env.PINATA_JWT ? "[SET]" : "[NOT SET]");
 
-    const pinataClient = await getPinataClient(process.env.PINATA_JWT!, process.env.PINATA_GATEWAY);
+    let metadataUrl: string;
+    if (process.env.PINATA_JWT && process.env.PINATA_JWT !== '[NOT SET]') {
+      const pinataClient = await getPinataClient(process.env.PINATA_JWT!, process.env.PINATA_GATEWAY);
 
     const imagePath = path.join(__dirname, "fixtures", "ticket.png");
     const haveImage = fs.existsSync(imagePath);
@@ -205,12 +207,18 @@ describe("nft-evo-tickets", function() {
       },
     };
 
-    // Upload both image and metadata to Pinata as PUBLIC (permanently pinned)
-    const { imageUrl, metadataUrl } = await uploadCompleteNFTToPinata(pinataClient, png, metadata, 'ticket.png');
+      // Upload both image and metadata to Pinata as PUBLIC (permanently pinned)
+      const { imageUrl, metadataUrl: pinataMetadataUrl } = await uploadCompleteNFTToPinata(pinataClient, png, metadata, 'ticket.png');
+      metadataUrl = pinataMetadataUrl;
 
-    console.log("Pinata IPFS URLs (Permanent & Public):");
-    console.log("  Image:", imageUrl);
-    console.log("  Metadata:", metadataUrl);
+      console.log("Pinata IPFS URLs (Permanent & Public):");
+      console.log("  Image:", imageUrl);
+      console.log("  Metadata:", metadataUrl);
+    } else {
+      // Use mock URLs for testing when Pinata is not available
+      metadataUrl = "https://example.com/metadata.json";
+      console.log("Using mock metadata URL for testing:", metadataUrl);
+    }
 
     // Generate QR code from NFT MINT ADDRESS (not metadata URL)
     const qrCodeDataUrl = await QRCode.toDataURL(nftMint.toString());
