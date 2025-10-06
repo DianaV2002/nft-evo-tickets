@@ -13,7 +13,13 @@
     "api:dev": "npx tsx --watch backend/ticket-check/server.ts",
     "ticket-check": "npx tsx --watch backend/ticket-check/server.ts",
     "validate-ticket": "npx tsx scripts/validate-ticket.ts",
-    "create-qr-ticket": "npx tsx scripts/create-qr-ticket.ts"
+    "create-qr-ticket": "npx tsx scripts/create-qr-ticket.ts",
+    "test:features": "npx tsx scripts/test-features.ts",
+    "test:individual": "npx tsx scripts/test-individual.ts",
+    "test:backend": "npx tsx scripts/test-backend.ts",
+    "test:all": "npx tsx scripts/run-tests.ts",
+    "test:quick": "npx tsx scripts/run-tests.ts --quick",
+    "test:mock": "npx tsx scripts/run-tests.ts --mock"
   },
   "keywords": [
     "solana",
