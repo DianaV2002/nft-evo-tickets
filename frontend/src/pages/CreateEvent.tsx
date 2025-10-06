@@ -366,34 +366,116 @@ export default function CreateEvent() {
         <div>
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>Preview</CardTitle>
+              <CardTitle>Live Preview</CardTitle>
               <CardDescription>
-                How your event will appear
+                How your event will appear to attendees
               </CardDescription>
             </CardHeader>
-            
+
             <CardContent className="space-y-4">
-              <div className="aspect-video bg-gradient-secondary rounded-lg flex items-center justify-center">
-                <span className="text-muted-foreground">Event Image</span>
-              </div>
-              
-              <div>
-                <h3 className="font-bold text-lg">Event Name</h3>
-                <p className="text-sm text-muted-foreground">Event description will appear here...</p>
-              </div>
-              
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-2 text-primary" />
-                  <span>Date & Time</span>
+              {/* Event Card Preview */}
+              <div className="border border-border/50 rounded-lg overflow-hidden">
+                {/* Event Image Placeholder */}
+                <div className="aspect-video bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center relative">
+                  <Ticket className="h-16 w-16 text-primary/40" />
+                  <div className="absolute top-2 right-2">
+                    <div className={`px-2 py-1 rounded text-xs font-medium ${
+                      form.watch("date") && form.watch("time")
+                        ? "bg-accent text-accent-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}>
+                      {form.watch("date") && form.watch("time") ? "Upcoming" : "Status"}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <MapPin className="h-4 w-4 mr-2 text-primary" />
-                  <span>Location</span>
+
+                {/* Event Details */}
+                <div className="p-4 space-y-3">
+                  <div>
+                    <h3 className="font-bold text-lg line-clamp-2">
+                      {form.watch("name") || "Your Event Name"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                      {form.watch("description") || "Event description will appear here..."}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    {/* Start Date & Time */}
+                    <div className="flex items-center text-muted-foreground">
+                      <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
+                      <span>
+                        {form.watch("date") && form.watch("time")
+                          ? `${new Date(form.watch("date")).toLocaleDateString("en-US", {
+                              month: "long",
+                              day: "numeric",
+                              year: "numeric",
+                            })} at ${form.watch("time")}`
+                          : "Start: Select date and time"}
+                      </span>
+                    </div>
+
+                    {/* End Date & Time */}
+                    {(form.watch("endDate") || form.watch("endTime")) && (
+                      <div className="flex items-center text-muted-foreground">
+                        <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
+                        <span>
+                          {form.watch("endDate") && form.watch("endTime")
+                            ? `Ends ${new Date(form.watch("endDate")).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })} at ${form.watch("endTime")}`
+                            : "End: Select date and time"}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Location */}
+                    <div className="flex items-center text-muted-foreground">
+                      <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+                      <span className="line-clamp-1">
+                        {form.watch("location") || "Event location"}
+                      </span>
+                    </div>
+
+                    {/* Capacity */}
+                    {form.watch("capacity") && (
+                      <div className="flex items-center text-muted-foreground">
+                        <Users className="h-4 w-4 mr-2 flex-shrink-0" />
+                        <span>{form.watch("capacity")} attendees capacity</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Pricing & Tickets */}
+                  <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                    <div>
+                      <p className="text-2xl font-bold text-primary">
+                        {form.watch("ticketPrice")
+                          ? `${form.watch("ticketPrice")} SOL`
+                          : "0.0 SOL"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {form.watch("ticketSupply") || 0} tickets available
+                      </p>
+                    </div>
+                    <Button className="bg-gradient-primary neon-glow" size="sm" disabled>
+                      Buy Ticket
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <Ticket className="h-4 w-4 mr-2 text-primary" />
-                  <span>Tickets Available</span>
+              </div>
+
+              {/* Blockchain Info */}
+              <div className="p-3 bg-muted/30 rounded-lg border border-border/50">
+                <div className="flex items-start gap-2">
+                  <Ticket className="h-4 w-4 text-primary mt-0.5" />
+                  <div className="text-xs">
+                    <p className="font-medium text-primary mb-1">Blockchain Event</p>
+                    <p className="text-muted-foreground">
+                      This event will be created on the Solana blockchain. Once created, it cannot be deleted.
+                    </p>
+                  </div>
                 </div>
               </div>
             </CardContent>
