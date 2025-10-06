@@ -6,51 +6,51 @@
 
 @layer base {
   :root {
-    /* Wellness nature theme - earthy & serene */
-    --background: 40 15% 96%;
-    --foreground: 150 15% 15%;
+    /* Wellness & nature theme */
+    --background: 140 20% 8%;
+    --foreground: 60 15% 95%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 150 15% 15%;
+    --card: 140 15% 12%;
+    --card-foreground: 60 15% 95%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 150 15% 15%;
+    --popover: 140 15% 12%;
+    --popover-foreground: 60 15% 95%;
 
-    /* Deep forest green primary */
-    --primary: 150 45% 35%;
-    --primary-foreground: 40 15% 96%;
+    /* Forest green primary */
+    --primary: 140 45% 45%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Warm earth secondary */
-    --secondary: 35 40% 65%;
-    --secondary-foreground: 150 15% 15%;
+    /* Sage secondary */
+    --secondary: 80 25% 60%;
+    --secondary-foreground: 140 30% 15%;
 
-    --muted: 40 15% 88%;
-    --muted-foreground: 150 10% 45%;
+    --muted: 140 10% 18%;
+    --muted-foreground: 60 10% 65%;
 
-    /* Fresh moss accent */
-    --accent: 130 40% 55%;
-    --accent-foreground: 40 15% 96%;
+    /* Warm earth accent */
+    --accent: 35 60% 65%;
+    --accent-foreground: 140 30% 15%;
 
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 40 15% 96%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 60 15% 95%;
 
-    --border: 150 15% 85%;
-    --input: 40 15% 88%;
-    --ring: 150 45% 35%;
+    --border: 140 10% 20%;
+    --input: 140 10% 20%;
+    --ring: 140 45% 45%;
 
     --radius: 1rem;
 
     /* Natural gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(150 45% 35%), hsl(130 40% 55%));
-    --gradient-secondary: linear-gradient(135deg, hsl(35 40% 65%), hsl(45 35% 75%));
-    --gradient-card: linear-gradient(135deg, hsl(0 0% 100% / 0.9), hsl(40 15% 96% / 0.8));
-    --gradient-glass: linear-gradient(135deg, hsl(150 15% 15% / 0.05), hsl(150 15% 15% / 0.02));
+    --gradient-primary: linear-gradient(135deg, hsl(140 45% 45%), hsl(160 50% 50%));
+    --gradient-secondary: linear-gradient(135deg, hsl(80 25% 60%), hsl(60 30% 70%));
+    --gradient-card: linear-gradient(135deg, hsl(140 15% 14%), hsl(140 15% 10%));
+    --gradient-glass: linear-gradient(135deg, rgba(104, 159, 116, 0.05), rgba(169, 169, 127, 0.05));
 
     /* Soft natural shadows */
-    --shadow-glass: 0 4px 20px 0 hsl(150 15% 15% / 0.08);
-    --shadow-neon: 0 0 15px hsl(150 45% 35% / 0.3);
-    --shadow-depth: 0 10px 30px -5px hsl(150 15% 15% / 0.15);
-    --shadow-card: 0 4px 12px -2px hsl(150 15% 15% / 0.1);
+    --shadow-glass: 0 8px 32px 0 rgba(104, 159, 116, 0.12);
+    --shadow-neon: 0 0 20px rgba(104, 159, 116, 0.3);
+    --shadow-depth: 0 10px 40px rgba(0, 0, 0, 0.4);
+    --shadow-card: 0 4px 20px rgba(104, 159, 116, 0.1);
 
     /* Sidebar */
     --sidebar-background: 224 24% 10%;
@@ -87,22 +87,22 @@
 
   body {
     @apply bg-background text-foreground;
-    background: linear-gradient(180deg, hsla(45, 25%, 97%, 0.392), hsl(35 30% 92%));
+    background: linear-gradient(135deg, hsl(140 20% 8%) 0%, hsl(120 20% 10%) 100%);
     min-height: 100vh;
     @apply font-sans;
   }
 }
 
 @layer components {
-  /* Nature Glass Card */
+  /* Glass Card */
   .glass-card {
     @apply backdrop-blur-sm border;
     background: var(--gradient-glass);
     box-shadow: var(--shadow-glass);
-    border: 1px solid hsl(150 15% 15% / 0.1);
+    border: 1px solid hsl(140 45% 45% / 0.2);
   }
 
-  /* Soft natural glow */
+  /* Neon glow */
   .neon-glow {
     box-shadow: var(--shadow-neon);
   }
@@ -147,7 +147,7 @@
   }
 
   @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 15px hsl(150 45% 35% / 0.2); }
-    50% { box-shadow: 0 0 25px hsl(150 45% 35% / 0.4); }
+    0%, 100% { box-shadow: 0 0 20px hsl(140 45% 45% / 0.25); }
+    50% { box-shadow: 0 0 30px hsl(160 50% 50% / 0.35); }
   }
 }
