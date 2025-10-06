@@ -144,3 +144,70 @@ export function formatEventTime(startTs: number, endTs: number): string {
   });
   return `${start} - ${end}`;
 }
+
+export interface CreateEventParams {
+  name: string;
+  startDate: Date;
+  endDate: Date;
+}
+
+export async function createEvent(
+  connection: Connection,
+  wallet: any,
+  params: CreateEventParams
+): Promise<string> {
+  if (!wallet.publicKey) {
+    throw new Error("Wallet not connected");
+  }
+
+  const { Program, AnchorProvider, BN, web3 } = await import("@coral-xyz/anchor");
+
+  // Create provider
+  const provider = new AnchorProvider(
+    connection,
+    wallet,
+    { commitment: "confirmed" }
+  );
+
+  // Create program instance
+  const program = new Program(idl as any, provider);
+
+  // Generate unique event ID from timestamp
+  const eventId = new BN(Date.now());
+
+  // Convert dates to Unix timestamps
+  const startTs = new BN(Math.floor(params.startDate.getTime() / 1000));
+  const endTs = new BN(Math.floor(params.endDate.getTime() / 1000));
+
+  // Derive event PDA
+  const [eventPda] = web3.PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("nft-evo-tickets"),
+      Buffer.from("event"),
+      eventId.toArrayLike(Buffer, "le", 8),
+    ],
+    PROGRAM_ID
+  );
+
+  console.log("Creating event:", {
+    eventId: eventId.toString(),
+    name: params.name,
+    startTs: startTs.toString(),
+    endTs: endTs.toString(),
+    eventPda: eventPda.toString(),
+  });
+
+  // Call create_event instruction
+  const tx = await program.methods
+    .createEvent(eventId, params.name, startTs, endTs)
+    .accounts({
+      organizer: wallet.publicKey,
+      eventAccount: eventPda,
+      systemProgram: web3.SystemProgram.programId,
+    })
+    .rpc();
+
+  console.log("Event created! Transaction:", tx);
+
+  return tx;
+}

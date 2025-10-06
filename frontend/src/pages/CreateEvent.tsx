@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Calendar, MapPin, Clock, Users, DollarSign, Ticket } from "lucide-react"
+import { Calendar, MapPin, Clock, Users, DollarSign, Ticket, Loader2, CheckCircle2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -7,12 +7,16 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useForm } from "react-hook-form"
+import { useConnection, useWallet } from "@solana/wallet-adapter-react"
+import { createEvent } from "@/services/eventService"
 
 type EventFormData = {
   name: string
   description: string
   date: string
   time: string
+  endDate: string
+  endTime: string
   location: string
   capacity: number
   ticketPrice: number
@@ -20,11 +24,52 @@ type EventFormData = {
 }
 
 export default function CreateEvent() {
+  const { connection } = useConnection()
+  const wallet = useWallet()
   const form = useForm<EventFormData>()
-  
-  const onSubmit = (data: EventFormData) => {
-    console.log("Event data:", data)
-    // This will need Supabase integration for storage
+  const [isCreating, setIsCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [txSignature, setTxSignature] = useState<string | null>(null)
+
+  const onSubmit = async (data: EventFormData) => {
+    if (!wallet.connected) {
+      setCreateError("Please connect your wallet first")
+      return
+    }
+
+    try {
+      setIsCreating(true)
+      setCreateError(null)
+      setTxSignature(null)
+
+      // Combine date and time
+      const startDateTime = new Date(`${data.date}T${data.time}`)
+      const endDateTime = new Date(`${data.endDate}T${data.endTime}`)
+
+      // Validate dates
+      if (endDateTime <= startDateTime) {
+        setCreateError("End date/time must be after start date/time")
+        return
+      }
+
+      // Create event on-chain
+      const signature = await createEvent(connection, wallet, {
+        name: data.name,
+        startDate: startDateTime,
+        endDate: endDateTime,
+      })
+
+      setTxSignature(signature)
+      console.log("Event created successfully:", signature)
+
+      // Reset form after successful creation
+      form.reset()
+    } catch (err: any) {
+      console.error("Failed to create event:", err)
+      setCreateError(err.message || "Failed to create event on blockchain")
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   return (
@@ -90,49 +135,88 @@ export default function CreateEvent() {
                     )}
                   />
 
-                  {/* Date & Time */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="date"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center">
-                            <Calendar className="h-4 w-4 mr-2" />
-                            Date
-                          </FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="date"
-                              className="glass-input"
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  {/* Start Date & Time */}
+                  <div className="space-y-2">
+                    <Label>Start Date & Time</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="date"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Input
+                                type="date"
+                                className="glass-input"
+                                {...field}
+                                required
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <FormField
-                      control={form.control}
-                      name="time"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center">
-                            <Clock className="h-4 w-4 mr-2" />
-                            Time
-                          </FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="time"
-                              className="glass-input"
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <FormField
+                        control={form.control}
+                        name="time"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Input
+                                type="time"
+                                className="glass-input"
+                                {...field}
+                                required
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  {/* End Date & Time */}
+                  <div className="space-y-2">
+                    <Label>End Date & Time</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="endDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Input
+                                type="date"
+                                className="glass-input"
+                                {...field}
+                                required
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="endTime"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Input
+                                type="time"
+                                className="glass-input"
+                                {...field}
+                                required
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
 
                   {/* Location */}
@@ -227,13 +311,51 @@ export default function CreateEvent() {
                     />
                   </div>
 
+                  {/* Error Display */}
+                  {createError && (
+                    <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                      <p className="text-sm text-destructive">{createError}</p>
+                    </div>
+                  )}
+
+                  {/* Success Display */}
+                  {txSignature && (
+                    <div className="p-4 bg-accent/10 border border-accent/20 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-accent mb-1">Event created successfully!</p>
+                          <p className="text-xs text-muted-foreground break-all">
+                            Transaction: {txSignature.slice(0, 8)}...{txSignature.slice(-8)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Submit */}
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     className="w-full bg-gradient-primary neon-glow spatial-hover"
+                    disabled={isCreating || !wallet.connected}
                   >
-                    Create Event & Mint Tickets
+                    {isCreating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Creating Event on Blockchain...
+                      </>
+                    ) : !wallet.connected ? (
+                      "Connect Wallet to Create Event"
+                    ) : (
+                      "Create Event on Blockchain"
+                    )}
                   </Button>
+
+                  {!wallet.connected && (
+                    <p className="text-xs text-center text-muted-foreground">
+                      Please connect your wallet to create events on the Solana blockchain
+                    </p>
+                  )}
                 </form>
               </Form>
             </CardContent>
