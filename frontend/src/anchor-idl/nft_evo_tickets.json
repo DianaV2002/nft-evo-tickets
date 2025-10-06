@@ -1,5 +1,5 @@
 {
-  "address": "G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr",
+  "address": "6mz15gSnFGTWzjHsveE8aFpVTKjdiLkVfQKtvFf1CGdc",
   "metadata": {
     "name": "nft_evo_tickets",
     "version": "0.1.0",
@@ -86,7 +86,8 @@
           ]
         },
         {
-          "name": "seller"
+          "name": "seller",
+          "writable": true
         },
         {
           "name": "nft_mint"
@@ -276,10 +277,6 @@
               ]
             }
           }
-        },
-        {
-          "name": "event_authority",
-          "optional": true
         },
         {
           "name": "token_program",
@@ -1326,6 +1323,202 @@
           }
         }
       ]
+    },
+    {
+      "name": "set_scanner",
+      "discriminator": [
+        141,
+        51,
+        158,
+        241,
+        72,
+        245,
+        223,
+        204
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "event_account"
+          ]
+        },
+        {
+          "name": "event_account",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "scanner",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_ticket",
+      "discriminator": [
+        177,
+        170,
+        60,
+        118,
+        217,
+        184,
+        131,
+        241
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "event_account"
+        },
+        {
+          "name": "ticket_account",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "relations": [
+            "event_account"
+          ]
+        },
+        {
+          "name": "scanner",
+          "relations": [
+            "event_account"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_stage",
+          "type": {
+            "defined": {
+              "name": "TicketStage"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_ticket_metadata",
+      "discriminator": [
+        110,
+        225,
+        96,
+        32,
+        181,
+        150,
+        95,
+        73
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "event_account",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  118,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "account",
+                "path": "event_account.event_id",
+                "account": "EventAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "ticket_account",
+          "writable": true
+        },
+        {
+          "name": "ticket_mint"
+        },
+        {
+          "name": "metadata_account",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "relations": [
+            "event_account"
+          ]
+        },
+        {
+          "name": "scanner",
+          "relations": [
+            "event_account"
+          ]
+        },
+        {
+          "name": "token_metadata_program",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        }
+      ],
+      "args": [
+        {
+          "name": "new_stage",
+          "type": {
+            "defined": {
+              "name": "TicketStage"
+            }
+          }
+        },
+        {
+          "name": "new_uri",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "upgrade_to_collectible",
+      "discriminator": [
+        55,
+        51,
+        67,
+        28,
+        152,
+        175,
+        20,
+        103
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "signer": true
+        },
+        {
+          "name": "event_account"
+        },
+        {
+          "name": "ticket_account",
+          "writable": true
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -1424,6 +1617,21 @@
       "code": 6007,
       "name": "CannotListInCurrentStage",
       "msg": "Cannot list ticket in current stage"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidTicketStage",
+      "msg": "Invalid ticket stage for this operation"
+    },
+    {
+      "code": 6009,
+      "name": "EventNotOver",
+      "msg": "The event has not finished yet"
+    },
+    {
+      "code": 6010,
+      "name": "TicketNotScanned",
+      "msg": "The ticket was not scanned for attendance"
     }
   ],
   "types": [
@@ -1434,6 +1642,10 @@
         "fields": [
           {
             "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "scanner",
             "type": "pubkey"
           },
           {
@@ -1561,6 +1773,10 @@
             "type": "bool"
           },
           {
+            "name": "was_scanned",
+            "type": "bool"
+          },
+          {
             "name": "listing_price",
             "type": {
               "option": "u64"
@@ -1588,7 +1804,16 @@
         "kind": "enum",
         "variants": [
           {
+            "name": "Prestige"
+          },
+          {
             "name": "Qr"
+          },
+          {
+            "name": "Scanned"
+          },
+          {
+            "name": "Collectible"
           }
         ]
       }

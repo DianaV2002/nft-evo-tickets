@@ -1,67 +1,36 @@
-import { Calendar, MapPin, Users, Clock } from "lucide-react"
+import { Calendar, Clock, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { useConnection } from "@solana/wallet-adapter-react"
+import { useEffect, useState } from "react"
+import { fetchAllEvents, EventData, getEventStatus, formatEventDate, formatEventTime } from "@/services/eventService"
 
 export default function Events() {
-  const events = [
-    {
-      id: 1,
-      name: "Neon Nights Festival 2024",
-      description: "The ultimate electronic music experience",
-      date: "December 15, 2024",
-      time: "18:00 - 06:00",
-      location: "Bucharest Arena",
-      attendees: 5000,
-      ticketsAvailable: 450,
-      price: "0.5 SOL",
-      image: "🎵",
-      category: "Music",
-      status: "live"
-    },
-    {
-      id: 2,
-      name: "Digital Dreams Conference",
-      description: "Web3 and blockchain innovation summit",
-      date: "December 20, 2024",
-      time: "09:00 - 18:00",
-      location: "Virtual Reality Space",
-      attendees: 1000,
-      ticketsAvailable: 200,
-      price: "0.3 SOL",
-      image: "💻",
-      category: "Tech",
-      status: "upcoming"
-    },
-    {
-      id: 3,
-      name: "Cyberpunk Art Exhibition",
-      description: "Immersive digital art experience",
-      date: "December 25, 2024",
-      time: "12:00 - 22:00",
-      location: "Gallery Matrix",
-      attendees: 300,
-      ticketsAvailable: 150,
-      price: "0.2 SOL",
-      image: "🎭",
-      category: "Art",
-      status: "upcoming"
-    },
-    {
-      id: 4,
-      name: "Future Gaming Expo",
-      description: "Next-gen gaming and esports",
-      date: "January 5, 2025",
-      time: "10:00 - 20:00",
-      location: "Convention Center",
-      attendees: 2000,
-      ticketsAvailable: 800,
-      price: "0.4 SOL",
-      image: "🎮",
-      category: "Gaming",
-      status: "upcoming"
+  const { connection } = useConnection()
+  const [events, setEvents] = useState<EventData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadEvents() {
+      try {
+        setLoading(true)
+        setError(null)
+        // Fetch all events owned by the current program (no authority filter)
+        // This will show all events created through program 6mz15gSnFGTWzjHsveE8aFpVTKjdiLkVfQKtvFf1CGdc
+        const fetchedEvents = await fetchAllEvents(connection)
+        setEvents(fetchedEvents)
+      } catch (err) {
+        console.error("Failed to load events:", err)
+        setError("Failed to load events from the blockchain")
+      } finally {
+        setLoading(false)
+      }
     }
-  ]
+
+    loadEvents()
+  }, [connection])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -81,78 +50,104 @@ export default function Events() {
             Discover amazing events and secure your NFT tickets
           </p>
         </div>
-        
-      
       </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex flex-col items-center justify-center py-20">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-muted-foreground mt-4">Loading events from blockchain...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !loading && (
+        <div className="flex flex-col items-center justify-center py-20">
+          <p className="text-destructive text-lg">{error}</p>
+          <Button onClick={() => window.location.reload()} className="mt-4" variant="outline">
+            Try Again
+          </Button>
+        </div>
+      )}
 
       {/* Events Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {events.map((event) => (
-          <Card key={event.id} className="glass-card spatial-hover group overflow-hidden">
-            <CardHeader className="pb-4">
-              <div className="flex items-start justify-between">
-                <div className="text-4xl mb-2">{event.image}</div>
-                <Badge className={getStatusColor(event.status)}>
-                  {event.status}
-                </Badge>
-              </div>
-              <CardTitle className="line-clamp-2 group-hover:text-primary transition-colors">
-                {event.name}
-              </CardTitle>
-              <CardDescription className="line-clamp-2">
-                {event.description}
-              </CardDescription>
-            </CardHeader>
-            
-            <CardContent className="space-y-4">
-              {/* Event Details */}
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center text-muted-foreground">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  {event.date}
-                </div>
-                <div className="flex items-center text-muted-foreground">
-                  <Clock className="h-4 w-4 mr-2" />
-                  {event.time}
-                </div>
-                <div className="flex items-center text-muted-foreground">
-                  <MapPin className="h-4 w-4 mr-2" />
-                  {event.location}
-                </div>
-                <div className="flex items-center text-muted-foreground">
-                  <Users className="h-4 w-4 mr-2" />
-                  {event.attendees} expected attendees
-                </div>
-              </div>
+      {!loading && !error && events.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20">
+          <p className="text-muted-foreground text-lg">No events found</p>
+        </div>
+      )}
 
-              {/* Pricing and Availability */}
-              <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                <div>
-                  <p className="text-2xl font-bold text-primary">{event.price}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {event.ticketsAvailable} tickets left
-                  </p>
-                </div>
-                <Button className="bg-gradient-primary neon-glow spatial-hover">
-                  Buy Ticket
-                </Button>
-              </div>
+      {!loading && !error && events.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {events.map((event) => {
+            const status = getEventStatus(event.startTs, event.endTs)
+            const date = formatEventDate(event.startTs)
+            const time = formatEventTime(event.startTs, event.endTs)
 
-              {/* Category */}
-              <Badge variant="outline" className="text-xs">
-                {event.category}
-              </Badge>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            return (
+              <Card key={event.publicKey} className="glass-card spatial-hover group overflow-hidden">
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between">
+                    <div className="text-4xl mb-2">🎫</div>
+                    <Badge className={getStatusColor(status)}>
+                      {status}
+                    </Badge>
+                  </div>
+                  <CardTitle className="line-clamp-2 group-hover:text-primary transition-colors">
+                    {event.name}
+                  </CardTitle>
+                  <CardDescription className="line-clamp-1 text-xs font-mono">
+                    ID: {event.eventId}
+                  </CardDescription>
+                </CardHeader>
 
-      {/* Load More */}
-      <div className="flex justify-center pt-8">
-        <Button variant="outline" size="lg" className="spatial-hover">
-          Load More Events
-        </Button>
-      </div>
+                <CardContent className="space-y-4">
+                  {/* Event Details */}
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center text-muted-foreground">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      {date}
+                    </div>
+                    <div className="flex items-center text-muted-foreground">
+                      <Clock className="h-4 w-4 mr-2" />
+                      {time}
+                    </div>
+                  </div>
+
+                  {/* Event Account Info */}
+                  <div className="pt-2 border-t border-border/50">
+                    <p className="text-xs text-muted-foreground truncate" title={event.publicKey}>
+                      Account: {event.publicKey.slice(0, 8)}...{event.publicKey.slice(-8)}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate mt-1" title={event.authority}>
+                      Authority: {event.authority.slice(0, 8)}...{event.authority.slice(-8)}
+                    </p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1">
+                      View Details
+                    </Button>
+                    <Button className="flex-1 bg-gradient-primary neon-glow spatial-hover">
+                      Buy Ticket
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Event Count */}
+      {!loading && !error && events.length > 0 && (
+        <div className="flex justify-center pt-8">
+          <p className="text-muted-foreground">
+            Showing {events.length} event{events.length !== 1 ? 's' : ''} from the blockchain
+          </p>
+        </div>
+      )}
     </div>
   )
 }

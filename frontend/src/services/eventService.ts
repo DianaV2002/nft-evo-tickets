@@ -1,0 +1,146 @@
+import * as anchor from "@coral-xyz/anchor";
+import { Connection, PublicKey } from "@solana/web3.js";
+import idl from "../anchor-idl/nft_evo_tickets.json";
+
+export interface EventData {
+  publicKey: string;
+  authority: string;
+  scanner: string;
+  eventId: string;
+  name: string;
+  startTs: number;
+  endTs: number;
+  bump: number;
+}
+
+const PROGRAM_ID = new PublicKey(idl.address);
+const EVENT_DISCRIMINATOR = [98, 136, 32, 165, 133, 231, 243, 154];
+
+export async function fetchAllEvents(
+  connection: Connection,
+  authorityFilter?: PublicKey
+): Promise<EventData[]> {
+  try {
+    // Build filters for fetching events
+    const filters: any[] = [
+      {
+        memcmp: {
+          offset: 0,
+          bytes: anchor.utils.bytes.bs58.encode(Buffer.from(EVENT_DISCRIMINATOR)),
+        },
+      },
+    ];
+
+    // If authority filter is provided, add it to filters
+    if (authorityFilter) {
+      filters.push({
+        memcmp: {
+          offset: 8, // After discriminator, authority starts at byte 8
+          bytes: authorityFilter.toBase58(),
+        },
+      });
+    }
+
+    // Fetch all accounts owned by the program with the EventAccount discriminator
+    const accounts = await connection.getProgramAccounts(PROGRAM_ID, {
+      filters,
+    });
+
+    const events: EventData[] = [];
+
+    for (const account of accounts) {
+      try {
+        const data = account.account.data;
+        let offset = 8; // Skip discriminator
+
+        // Read authority (32 bytes)
+        const authority = new PublicKey(data.slice(offset, offset + 32));
+        offset += 32;
+
+        // Read scanner (32 bytes)
+        const scanner = new PublicKey(data.slice(offset, offset + 32));
+        offset += 32;
+
+        // Read event_id (8 bytes, little-endian u64)
+        const eventId = data.readBigUInt64LE(offset);
+        offset += 8;
+
+        // Read name (4 bytes length + string)
+        const nameLength = data.readUInt32LE(offset);
+        offset += 4;
+        const name = data.slice(offset, offset + nameLength).toString("utf-8");
+        offset += nameLength;
+
+        // Read start_ts (8 bytes, little-endian i64)
+        const startTs = data.readBigInt64LE(offset);
+        offset += 8;
+
+        // Read end_ts (8 bytes, little-endian i64)
+        const endTs = data.readBigInt64LE(offset);
+        offset += 8;
+
+        // Read bump (1 byte)
+        const bump = data.readUInt8(offset);
+
+        events.push({
+          publicKey: account.pubkey.toString(),
+          authority: authority.toString(),
+          scanner: scanner.toString(),
+          eventId: eventId.toString(),
+          name,
+          startTs: Number(startTs),
+          endTs: Number(endTs),
+          bump,
+        });
+      } catch (err) {
+        console.error(`Error decoding event account ${account.pubkey.toString()}:`, err);
+      }
+    }
+
+    // Filter out past events (where end time has passed)
+    const now = Math.floor(Date.now() / 1000);
+    const activeEvents = events.filter(event => event.endTs > now);
+
+    // Sort by start time (most recent first)
+    activeEvents.sort((a, b) => b.startTs - a.startTs);
+
+    return activeEvents;
+  } catch (error) {
+    console.error("Error fetching events:", error);
+    return [];
+  }
+}
+
+export function getEventStatus(startTs: number, endTs: number): "upcoming" | "live" | "ended" {
+  const now = Date.now() / 1000;
+
+  if (now < startTs) {
+    return "upcoming";
+  } else if (now >= startTs && now <= endTs) {
+    return "live";
+  } else {
+    return "ended";
+  }
+}
+
+export function formatEventDate(timestamp: number): string {
+  return new Date(timestamp * 1000).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+export function formatEventTime(startTs: number, endTs: number): string {
+  const start = new Date(startTs * 1000).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const end = new Date(endTs * 1000).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return `${start} - ${end}`;
+}
