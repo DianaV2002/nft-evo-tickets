@@ -5,28 +5,28 @@ import { Button } from "@/components/ui/button"
 export default function Dashboard() {
   const stats = [
     {
-      title: "Wellness Events",
+      title: "Events Attended",
       value: "24",
       change: "+12%",
       icon: Leaf,
       color: "text-primary"
     },
     {
-      title: "Experiences Attended",
-      value: "8",
-      change: "+3 this month",
-      icon: Calendar,
-      color: "text-accent"
-    },
-    {
-      title: "Community Points",
+      title: "Level Points",
       value: "1,247",
       change: "+180 this week",
       icon: Sparkles,
+      color: "text-accent"
+    },
+    {
+      title: "NFT Collectibles",
+      value: "8",
+      change: "+3 this month",
+      icon: Award,
       color: "text-secondary"
     },
     {
-      title: "Referral Rewards",
+      title: "Referral Earnings",
       value: "3.2 SOL",
       change: "+0.8 SOL",
       icon: Gift,
@@ -66,9 +66,9 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
         <div>
-          <h1 className="text-4xl font-bold gradient-text">Your Wellness Journey</h1>
+          <h1 className="text-4xl font-bold gradient-text">Your Evo Journey</h1>
           <p className="text-muted-foreground mt-2">
-            Transform through authentic experiences and community connection
+            Track your events, level up, and unlock exclusive rewards in the Evo Tickets community
           </p>
         </div>
       </div>

@@ -63,7 +63,7 @@ export function EvoSidebar() {
         {/* Logo */}
         <div className="mb-8 px-2">
           {!collapsed ? (
-            <h1 className="text-2xl font-light gradient-text">Wellness Collective</h1>
+            <h1 className="text-2xl font-light gradient-text">Evo Tickets</h1>
           ) : (
             <div className="w-8 h-8 bg-gradient-primary rounded-lg neon-glow"></div>
           )}
