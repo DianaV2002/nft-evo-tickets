@@ -7,11 +7,16 @@
   "scripts": {
     "test": "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/setup.ts tests/nft-evo-tickets.ts",
     "test:instructions": "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/setup.ts tests/instructions.test.ts",
+    "test:buy": "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/setup.ts tests/buy-ticket-only.ts",
     "test:all": "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/setup.ts tests/**/*.ts",
     "lint:fix": "solana-prettier-rust --check programs/**/*.rs && prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml}",
     "api": "npx tsx backend/ticket-check/server.ts",
     "api:dev": "npx tsx --watch backend/ticket-check/server.ts",
     "ticket-check": "npx tsx --watch backend/ticket-check/server.ts",
+    "level-system": "npx tsx backend/level-system/server.ts",
+    "level-system:dev": "npx tsx --watch backend/level-system/server.ts",
+    "level-system:test": "npx tsx scripts/test-level-system.ts",
+    "level-system:reset": "npx tsx scripts/reset-scanner.ts",
     "validate-ticket": "npx tsx scripts/validate-ticket.ts",
     "create-qr-ticket": "npx tsx scripts/create-qr-ticket.ts"
   },
@@ -27,6 +32,7 @@
     "@solana/spl-token": "^0.4.0",
     "@solana/web3.js": "^1.89.1",
     "@types/bs58": "^4.0.4",
+    "better-sqlite3": "^11.0.0",
     "bs58": "^5.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
@@ -34,11 +40,14 @@
     "express-rate-limit": "^8.1.0",
     "express-validator": "^7.2.1",
     "helmet": "^8.1.0",
+    "node-fetch": "^3.3.2",
     "pinata": "^2.5.0",
     "qrcode": "^1.5.4",
-    "rpc-websockets": "^4.1.2"
+    "rpc-websockets": "^4.1.2",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/mocha": "10.0.6",

@@ -1,8 +1,33 @@
 import { Calendar, Ticket, TrendingUp, Users, Plus, Sparkles, Award, Gift, Share2, Leaf } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react"
+import { getUserLevel } from "@/services/levelService"
+import { useWallet } from "@solana/wallet-adapter-react"
 
 export default function Dashboard() {
+  const { publicKey } = useWallet();
+  const [myPoints, setMyPoints] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchMyPoints = async () => {
+      try {
+        if (publicKey) {
+          const walletAddress = publicKey.toBase58();
+          const userLevel = await getUserLevel(walletAddress);
+          setMyPoints(userLevel.totalPoints);
+        } else {
+          setMyPoints(0);
+        }
+      } catch (error) {
+        console.error('Error fetching user points:', error);
+        setMyPoints(0);
+      }
+    };
+
+    fetchMyPoints();
+  }, [publicKey]);
+
   const stats = [
     {
       title: "Wellness Events",
@@ -20,7 +45,7 @@ export default function Dashboard() {
     },
     {
       title: "Community Points",
-      value: "1,247",
+      value: myPoints !== null ? myPoints.toLocaleString() : "...",
       change: "+180 this week",
       icon: Sparkles,
       color: "text-secondary"

@@ -6,16 +6,16 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-nft_evo_tickets = "G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr"
+nft_evo_tickets = "6mz15gSnFGTWzjHsveE8aFpVTKjdiLkVfQKtvFf1CGdc"
 
 [programs.localnet]
-nft_evo_tickets = "G7gJtKKLntuJpZjzAxPtEurJEgLCFnYA7XzfZuwogSvr"
+nft_evo_tickets = "6mz15gSnFGTWzjHsveE8aFpVTKjdiLkVfQKtvFf1CGdc"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

@@ -7,3 +7,8 @@ test-ledger
 .yarn
 .env
 **/qr-code.png
+
+# Level System Database
+backend/level-system/database/*.db
+backend/level-system/database/*.db-shm
+backend/level-system/database/*.db-wal

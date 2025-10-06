@@ -2,83 +2,152 @@ import { Gift, Award, Share2, Sparkles, TrendingUp, Users, Copy, Check } from "l
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { Progress } from "@/components/ui/progress";
+import { useState, useEffect } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import {
+  getAllLevels,
+  getUserLevel,
+  getUserActivities,
+  formatActivityType,
+  getActivityIcon,
+  timeAgo,
+  type Level,
+  type UserLevel,
+  type Activity,
+} from "@/services/levelService";
 
 export default function Rewards() {
+  const { publicKey } = useWallet();
   const [copied, setCopied] = useState(false);
+  const [levels, setLevels] = useState<Level[]>([]);
+  const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const referralCode = "WELLNESS2024";
-  
+
   const copyReferralCode = () => {
     navigator.clipboard.writeText(referralCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const levels = [
-    { name: "Seed Planter", points: 0, icon: "🌱", color: "text-primary" },
-    { name: "Root Grower", points: 500, icon: "🌿", color: "text-accent" },
-    { name: "Bloom Tender", points: 1000, icon: "🌸", color: "text-secondary" },
-    { name: "Forest Guardian", points: 2000, icon: "🌳", color: "text-primary" },
-    { name: "Nature Sage", points: 5000, icon: "🍃", color: "text-accent" }
-  ];
+  // Fetch data on mount and when wallet changes
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  const currentPoints = 1247;
-  const currentLevel = levels.findIndex(l => l.points > currentPoints) - 1;
-  const nextLevel = levels[currentLevel + 1];
-  const progressToNext = nextLevel 
-    ? ((currentPoints - levels[currentLevel].points) / (nextLevel.points - levels[currentLevel].points)) * 100
-    : 100;
+        // Fetch all levels
+        const levelsData = await getAllLevels();
+        setLevels(levelsData);
 
-  const rewards = [
-    {
-      type: "Referral Bonus",
-      description: "Friend joined and attended first event",
-      amount: "+0.5 SOL",
-      points: "+100 pts",
-      date: "2 days ago",
-      icon: "🎁"
-    },
-    {
-      type: "Event Attendance",
-      description: "Completed Forest Sound Healing Retreat",
-      amount: "",
-      points: "+50 pts",
-      date: "1 week ago",
-      icon: "✅"
-    },
-    {
-      type: "Community Engagement",
-      description: "Shared event with 5 friends",
-      amount: "",
-      points: "+30 pts",
-      date: "2 weeks ago",
-      icon: "💚"
-    }
-  ];
+        // Fetch user data if wallet connected
+        if (publicKey) {
+          const walletAddress = publicKey.toBase58();
+          const [userLevelData, activitiesData] = await Promise.all([
+            getUserLevel(walletAddress),
+            getUserActivities(walletAddress, 20),
+          ]);
+
+          setUserLevel(userLevelData);
+          setActivities(activitiesData);
+        }
+      } catch (err) {
+        console.error('Error fetching level data:', err);
+        setError('Failed to load level data. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [publicKey]);
+
+  // Determine current level index
+  const currentLevelIndex = userLevel && levels.length > 0
+    ? levels.findIndex(l => l.name === userLevel.currentLevelData.name)
+    : 0;
 
   const perks = [
     {
       title: "Early Access",
       description: "Get first pick on new retreat launches",
-      unlocked: true
+      unlocked: (userLevel?.totalPoints || 0) >= 500
     },
     {
       title: "Exclusive Discounts",
       description: "15% off all wellness experiences",
-      unlocked: true
+      unlocked: (userLevel?.totalPoints || 0) >= 1000
     },
     {
       title: "VIP Gatherings",
       description: "Invite-only community events",
-      unlocked: false
+      unlocked: (userLevel?.totalPoints || 0) >= 2000
     },
     {
       title: "Free Hosting",
       description: "Host your own event for free",
-      unlocked: false
+      unlocked: (userLevel?.totalPoints || 0) >= 5000
     }
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Sparkles className="w-16 h-16 mx-auto mb-4 text-primary animate-pulse" />
+          <p className="text-muted-foreground">Loading your rewards...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!publicKey) {
+    return (
+      <div className="space-y-8">
+        {/* Hero */}
+        <div className="relative overflow-hidden rounded-3xl">
+          <div className="absolute inset-0 bg-gradient-primary opacity-30"></div>
+          <div className="relative p-12 text-center">
+            <Sparkles className="w-16 h-16 mx-auto mb-4 text-primary" />
+            <h1 className="text-5xl font-light mb-4 text-foreground">Rewards & Growth</h1>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto font-light mb-6">
+              Every connection you make, every experience you share, nurtures our collective garden
+            </p>
+            <p className="text-lg text-primary font-medium">
+              Please connect your wallet to view your rewards
+            </p>
+          </div>
+        </div>
+
+        {/* Show levels preview */}
+        <Card className="glass-card border-none">
+          <CardHeader>
+            <CardTitle className="text-2xl font-light">Available Levels</CardTitle>
+            <CardDescription>Connect your wallet to start earning points</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {levels.map((level, idx) => (
+                <div
+                  key={idx}
+                  className="text-center p-4 rounded-xl border bg-muted/10 border-border/50"
+                >
+                  <div className="text-3xl mb-2">{level.emoji}</div>
+                  <p className="text-sm font-medium">{level.name}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{level.minPoints} pts</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -94,57 +163,62 @@ export default function Rewards() {
         </div>
       </div>
 
+      {error && (
+        <Card className="border-destructive">
+          <CardContent className="p-6">
+            <p className="text-destructive text-center">{error}</p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Level Progress */}
-      <Card className="glass-card border-none overflow-hidden">
-        <div className="bg-gradient-secondary p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm text-primary-foreground/70 mb-1 uppercase tracking-wider">Current Level</p>
-              <h2 className="text-3xl font-light text-primary-foreground">
-                {levels[currentLevel].icon} {levels[currentLevel].name}
-              </h2>
+      {userLevel && (
+        <Card className="glass-card border-none overflow-hidden">
+          <div className="bg-gradient-secondary p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm text-primary-foreground/70 mb-1 uppercase tracking-wider">Current Level</p>
+                <h2 className="text-3xl font-light text-primary-foreground">
+                  {userLevel.currentLevelData.emoji} {userLevel.currentLevelData.name}
+                </h2>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-primary-foreground/70 mb-1 uppercase tracking-wider">Points</p>
+                <p className="text-3xl font-light text-primary-foreground">{userLevel.totalPoints.toLocaleString()}</p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-primary-foreground/70 mb-1 uppercase tracking-wider">Points</p>
-              <p className="text-3xl font-light text-primary-foreground">{currentPoints}</p>
-            </div>
+
+            {userLevel.nextLevelData && (
+              <>
+                <Progress value={userLevel.progressToNext} className="h-3 mb-2" />
+                <p className="text-sm text-primary-foreground/70 text-center">
+                  {(userLevel.nextLevelData.minPoints - userLevel.totalPoints).toLocaleString()} points until {userLevel.nextLevelData.name}
+                </p>
+              </>
+            )}
           </div>
 
-          {nextLevel && (
-            <>
-              <div className="w-full bg-background/20 rounded-full h-3 mb-2">
-                <div 
-                  className="bg-primary-foreground h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${progressToNext}%` }}
-                ></div>
-              </div>
-              <p className="text-sm text-primary-foreground/70 text-center">
-                {nextLevel.points - currentPoints} points until {nextLevel.name}
-              </p>
-            </>
-          )}
-        </div>
-
-        <CardContent className="p-6">
-          <h3 className="text-lg font-light mb-4">All Levels</h3>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {levels.map((level, idx) => (
-              <div 
-                key={idx}
-                className={`text-center p-4 rounded-xl border transition-all duration-300 ${
-                  idx <= currentLevel
-                    ? 'bg-muted/30 border-primary/30 spatial-hover'
-                    : 'bg-muted/10 border-border/50 opacity-50'
-                }`}
-              >
-                <div className="text-3xl mb-2">{level.icon}</div>
-                <p className={`text-sm font-medium ${level.color}`}>{level.name}</p>
-                <p className="text-xs text-muted-foreground mt-1">{level.points} pts</p>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+          <CardContent className="p-6">
+            <h3 className="text-lg font-light mb-4">All Levels</h3>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {levels.map((level, idx) => (
+                <div
+                  key={idx}
+                  className={`text-center p-4 rounded-xl border transition-all duration-300 ${
+                    idx <= currentLevelIndex
+                      ? 'bg-muted/30 border-primary/30 spatial-hover'
+                      : 'bg-muted/10 border-border/50 opacity-50'
+                  }`}
+                >
+                  <div className="text-3xl mb-2">{level.emoji}</div>
+                  <p className="text-sm font-medium">{level.name}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{level.minPoints} pts</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Referral Program */}
@@ -164,26 +238,14 @@ export default function Rewards() {
               <p className="text-sm opacity-90 mb-2 uppercase tracking-wider">Your Referral Code</p>
               <div className="flex items-center justify-between">
                 <p className="text-2xl font-light">{referralCode}</p>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={copyReferralCode}
                   className="bg-primary-foreground/20 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/30"
                 >
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </Button>
-              </div>
-            </div>
-
-            {/* Referral Stats */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-muted/30 rounded-xl p-4 text-center border border-border/50">
-                <p className="text-3xl font-light text-primary mb-1">8</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Friends Referred</p>
-              </div>
-              <div className="bg-muted/30 rounded-xl p-4 text-center border border-border/50">
-                <p className="text-3xl font-light text-accent mb-1">3.2</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">SOL Earned</p>
               </div>
             </div>
 
@@ -228,7 +290,7 @@ export default function Rewards() {
             </CardHeader>
             <CardContent className="space-y-3">
               {perks.map((perk, idx) => (
-                <div 
+                <div
                   key={idx}
                   className={`p-4 rounded-xl border transition-all ${
                     perk.unlocked
@@ -259,22 +321,29 @@ export default function Rewards() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {rewards.map((reward, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/20 transition-colors">
-                  <div className="text-2xl">{reward.icon}</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{reward.type}</p>
-                    <p className="text-xs text-muted-foreground mb-1">{reward.description}</p>
-                    <p className="text-xs text-muted-foreground">{reward.date}</p>
+              {activities.length === 0 ? (
+                <p className="text-muted-foreground text-center py-6">
+                  No activity yet. Start earning points by interacting with events!
+                </p>
+              ) : (
+                activities.map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/20 transition-colors">
+                    <div className="text-2xl">{getActivityIcon(activity.activityType)}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{formatActivityType(activity.activityType)}</p>
+                      {activity.transactionSignature && (
+                        <p className="text-xs text-muted-foreground mb-1">
+                          Tx: {activity.transactionSignature.slice(0, 8)}...
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">{timeAgo(activity.createdAt)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-accent">+{activity.pointsEarned} pts</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    {reward.amount && (
-                      <p className="text-sm font-medium text-primary">{reward.amount}</p>
-                    )}
-                    <p className="text-xs text-accent">{reward.points}</p>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </CardContent>
           </Card>
         </div>
