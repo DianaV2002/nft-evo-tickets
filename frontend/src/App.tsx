@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "./components/Layout";
+import AIChatbot from "./components/AIChatbot";
 import Dashboard from "./pages/Dashboard";
 import Events from "./pages/Events";
 import Marketplace from "./pages/Marketplace";
@@ -47,6 +48,7 @@ function AppRoutes() {
             <Route path="/my-events" element={<MyEvents />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <AIChatbot />
         </Layout>
       ) : (
         <Routes>
