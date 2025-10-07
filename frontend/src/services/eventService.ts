@@ -131,7 +131,7 @@ export async function fetchAllEvents(
         }
         const bump = data.readUInt8(offset);
 
-        events.push({
+        const eventData = {
           publicKey: account.pubkey.toString(),
           authority: authority.toString(),
           scanner: scanner.toString(),
@@ -140,7 +140,17 @@ export async function fetchAllEvents(
           startTs: Number(startTs),
           endTs: Number(endTs),
           bump,
+        };
+        
+        // Debug: Log timestamp values
+        console.log(`Event ${eventData.name}:`, {
+          startTs: eventData.startTs,
+          endTs: eventData.endTs,
+          startDate: new Date(eventData.startTs * 1000),
+          endDate: new Date(eventData.endTs * 1000)
         });
+        
+        events.push(eventData);
       } catch (err) {
         console.error(`Error decoding event account ${account.pubkey.toString()}:`, err);
       }
@@ -173,7 +183,19 @@ export function getEventStatus(startTs: number, endTs: number): "upcoming" | "li
 }
 
 export function formatEventDate(timestamp: number): string {
-  return new Date(timestamp * 1000).toLocaleDateString("en-US", {
+  // Handle invalid timestamps
+  if (!timestamp || timestamp < 0 || timestamp > 4102444800) { // Year 2100
+    return "Invalid Date";
+  }
+  
+  const date = new Date(timestamp * 1000);
+  
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    return "Invalid Date";
+  }
+  
+  return date.toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",

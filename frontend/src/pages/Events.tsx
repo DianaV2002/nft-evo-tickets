@@ -150,7 +150,13 @@ export default function Events() {
                     <div className="flex justify-between items-center text-sm mt-1">
                       <span className="text-muted-foreground">Places Left</span>
                       <span className="text-xs font-medium text-primary">
-                        {Math.floor(Math.random() * 50) + 10} available
+                        {(() => {
+                          const totalCapacity = 100;
+                          // Use event ID as seed for consistent numbers
+                          const seed = parseInt(event.eventId.slice(-2), 16) || 0;
+                          const ticketsSold = (seed % 30) + 10; // 10-40 tickets sold
+                          return totalCapacity - ticketsSold;
+                        })()} available
                       </span>
                     </div>
                     
@@ -208,7 +214,14 @@ export default function Events() {
 
                   {/* Actions */}
                   <div className="flex gap-2">
-                    <Button variant="outline" className="flex-1">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={() => {
+                        setSelectedEvent(event)
+                        setIsDialogOpen(true)
+                      }}
+                    >
                       View Details
                     </Button>
                     <Button
@@ -237,34 +250,121 @@ export default function Events() {
         </div>
       )}
 
-      {/* Buy Ticket Dialog */}
+      {/* Event Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Buy Ticket</DialogTitle>
+            <DialogTitle className="text-2xl">{selectedEvent?.name}</DialogTitle>
             <DialogDescription>
-              Purchase your NFT ticket for {selectedEvent?.name}
+              Complete event information and ticket purchase
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-6 py-4">
             {selectedEvent && (
               <>
-                <div className="space-y-2">
-                  <div className="flex items-center text-sm">
-                    <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span>{formatEventDate(selectedEvent.startTs)}</span>
+                {/* Event Overview */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center text-sm">
+                        <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <span className="font-medium">Date</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground ml-6">
+                        {formatEventDate(selectedEvent.startTs)}
+                        <span className="text-xs text-red-500 ml-2">
+                          (Debug: {selectedEvent.startTs})
+                        </span>
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center text-sm">
+                        <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <span className="font-medium">Time</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground ml-6">
+                        {formatEventTime(selectedEvent.startTs, selectedEvent.endTs)}
+                        <span className="text-xs text-red-500 ml-2">
+                          (Debug: {selectedEvent.startTs} - {selectedEvent.endTs})
+                        </span>
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center text-sm">
-                    <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span>{formatEventTime(selectedEvent.startTs, selectedEvent.endTs)}</span>
+                  
+                  {/* Event Stats */}
+                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                    {(() => {
+                      const totalCapacity = 100;
+                      // Use event ID as seed for consistent numbers
+                      const seed = parseInt(selectedEvent.eventId.slice(-2), 16) || 0;
+                      const ticketsSold = (seed % 30) + 10; // 10-40 tickets sold
+                      const placesLeft = totalCapacity - ticketsSold;
+                      
+                      return (
+                        <>
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-primary">
+                              {placesLeft}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Places Left</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-secondary">
+                              {ticketsSold}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Tickets Sold</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-accent">{totalCapacity}</p>
+                            <p className="text-xs text-muted-foreground">Total Capacity</p>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
-                <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Event ID: {selectedEvent.eventId}
-                  </p>
-                  <Button className="w-full bg-gradient-primary">
-                    Confirm Purchase
+
+                {/* Technical Details */}
+                <div className="space-y-3 pt-4 border-t">
+                  <h4 className="font-medium text-sm">Event Information</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Event ID:</span>
+                      <p className="font-mono text-xs">{selectedEvent.eventId}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Status:</span>
+                      <p className="font-mono text-xs">
+                        {getEventStatus(selectedEvent.startTs, selectedEvent.endTs) === 'live' ? 'Live' : 
+                         getEventStatus(selectedEvent.startTs, selectedEvent.endTs) === 'upcoming' ? 'Upcoming' : 'Ended'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Account:</span>
+                      <p className="font-mono text-xs truncate" title={selectedEvent.publicKey}>
+                        {selectedEvent.publicKey.slice(0, 8)}...{selectedEvent.publicKey.slice(-8)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Authority:</span>
+                      <p className="font-mono text-xs truncate" title={selectedEvent.authority}>
+                        {selectedEvent.authority.slice(0, 8)}...{selectedEvent.authority.slice(-8)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => setIsDialogOpen(false)}
+                  >
+                    Close
+                  </Button>
+                  <Button className="flex-1 bg-gradient-primary">
+                    Buy Ticket
                   </Button>
                 </div>
               </>
