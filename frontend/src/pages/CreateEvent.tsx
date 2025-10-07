@@ -82,6 +82,18 @@ export default function CreateEvent() {
         return
       }
 
+      // Check if start date is in the past
+      const now = new Date()
+      if (data.startDateTime <= now) {
+        setUserError({
+          title: 'Invalid Start Date',
+          message: 'Event start date must be in the future.',
+          suggestion: 'Please select a start date and time that is after the current time.',
+          type: 'error'
+        })
+        return
+      }
+
       if (data.endDateTime <= data.startDateTime) {
         setUserError({
           title: 'Invalid Date Range',

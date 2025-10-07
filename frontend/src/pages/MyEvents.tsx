@@ -1,4 +1,4 @@
-import { Calendar, Clock, Users, Ticket, Edit, Trash2, MoreHorizontal, Loader2 } from "lucide-react"
+import { Calendar, Clock, Users, Ticket, Edit, Trash2, MoreHorizontal, Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,7 @@ export default function MyEvents() {
   const [events, setEvents] = useState<EventData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     async function loadMyEvents() {
@@ -56,6 +57,18 @@ export default function MyEvents() {
   // Calculate stats from blockchain events
   const totalEvents = events.length
   const activeEvents = events.filter(e => getEventStatus(e.startTs, e.endTs) === 'live').length
+
+  const toggleCardExpansion = (eventId: string) => {
+    setExpandedCards(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(eventId)) {
+        newSet.delete(eventId)
+      } else {
+        newSet.add(eventId)
+      }
+      return newSet
+    })
+  }
 
   return (
     <div className="space-y-8">
@@ -147,8 +160,8 @@ export default function MyEvents() {
                   <CardTitle className="line-clamp-2 group-hover:text-primary transition-colors">
                     {event.name}
                   </CardTitle>
-                  <CardDescription className="line-clamp-1 text-xs font-mono">
-                    ID: {event.eventId}
+                  <CardDescription className="line-clamp-1">
+                    Created by you
                   </CardDescription>
                 </CardHeader>
 
@@ -165,14 +178,59 @@ export default function MyEvents() {
                     </div>
                   </div>
 
-                  {/* Event Account Info */}
+                  {/* Event Stats */}
                   <div className="pt-2 border-t border-border/50">
-                    <p className="text-xs text-muted-foreground truncate" title={event.publicKey}>
-                      Account: {event.publicKey.slice(0, 8)}...{event.publicKey.slice(-8)}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate mt-1" title={event.authority}>
-                      Authority: {event.authority.slice(0, 8)}...{event.authority.slice(-8)}
-                    </p>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Event ID</span>
+                      <span className="font-mono text-xs">{event.eventId}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm mt-1">
+                      <span className="text-muted-foreground">Status</span>
+                      <Badge variant="outline" className="text-xs">
+                        {status === 'live' ? 'Live' : status === 'upcoming' ? 'Upcoming' : 'Ended'}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between items-center text-sm mt-1">
+                      <span className="text-muted-foreground">Tickets</span>
+                      <span className="text-xs">0 sold</span>
+                    </div>
+                    
+                    {/* Technical Details Toggle */}
+                    <button
+                      onClick={() => toggleCardExpansion(event.eventId)}
+                      className="flex items-center justify-between w-full mt-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <span>Technical Details</span>
+                      {expandedCards.has(event.eventId) ? (
+                        <ChevronUp className="h-3 w-3" />
+                      ) : (
+                        <ChevronDown className="h-3 w-3" />
+                      )}
+                    </button>
+                    
+                    {/* Collapsible Technical Details */}
+                    {expandedCards.has(event.eventId) && (
+                      <div className="mt-2 p-2 bg-muted/30 rounded text-xs space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Account:</span>
+                          <span className="font-mono truncate" title={event.publicKey}>
+                            {event.publicKey.slice(0, 8)}...{event.publicKey.slice(-8)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Authority:</span>
+                          <span className="font-mono truncate" title={event.authority}>
+                            {event.authority.slice(0, 8)}...{event.authority.slice(-8)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Scanner:</span>
+                          <span className="font-mono truncate" title={event.scanner}>
+                            {event.scanner.slice(0, 8)}...{event.scanner.slice(-8)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions */}

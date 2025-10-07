@@ -51,6 +51,15 @@ export function DateTimePicker({
       const [hours, minutes] = time.split(":")
       const combinedDate = new Date(selectedDate)
       combinedDate.setHours(parseInt(hours), parseInt(minutes))
+      
+      // Check if the selected time is in the past (only for today)
+      const now = new Date()
+      const isToday = selectedDate.toDateString() === now.toDateString()
+      if (isToday && combinedDate <= now) {
+        // Don't allow past times for today
+        return
+      }
+      
       onDateChange?.(combinedDate)
     }
   }
@@ -82,7 +91,11 @@ export function DateTimePicker({
             selected={selectedDate}
             onSelect={handleDateSelect}
             initialFocus
-            disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+            disabled={(date) => {
+              const today = new Date()
+              const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+              return date < todayStart
+            }}
           />
         </PopoverContent>
       </Popover>
@@ -104,12 +117,27 @@ export function DateTimePicker({
             return Array.from({ length: 4 }, (_, j) => {
               const minute = (j * 15).toString().padStart(2, "0")
               const timeValue = `${hour}:${minute}`
+              
+              // Filter out past times if today is selected
+              const now = new Date()
+              const isToday = selectedDate && selectedDate.toDateString() === now.toDateString()
+              if (isToday) {
+                const [currentHour, currentMinute] = [now.getHours(), now.getMinutes()]
+                const [selectedHour, selectedMinute] = [parseInt(hour), parseInt(minute)]
+                const isPastTime = selectedHour < currentHour || 
+                  (selectedHour === currentHour && selectedMinute <= currentMinute)
+                
+                if (isPastTime) {
+                  return null
+                }
+              }
+              
               return (
                 <SelectItem key={timeValue} value={timeValue}>
                   {timeValue}
                 </SelectItem>
               )
-            })
+            }).filter(Boolean)
           }).flat()}
         </SelectContent>
       </Select>
