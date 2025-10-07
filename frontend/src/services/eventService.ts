@@ -197,17 +197,52 @@ export async function createEvent(
     eventPda: eventPda.toString(),
   });
 
-  // Call create_event instruction
-  const tx = await program.methods
-    .createEvent(eventId, params.name, startTs, endTs)
-    .accounts({
-      organizer: wallet.publicKey,
-      eventAccount: eventPda,
-      systemProgram: web3.SystemProgram.programId,
-    })
-    .rpc();
+  try {
+    // Call create_event instruction
+    const tx = await program.methods
+      .createEvent(eventId, params.name, startTs, endTs)
+      .accounts({
+        organizer: wallet.publicKey,
+        eventAccount: eventPda,
+        systemProgram: web3.SystemProgram.programId,
+      })
+      .rpc();
 
-  console.log("Event created! Transaction:", tx);
+    console.log("Event created! Transaction:", tx);
 
-  return tx;
+    return tx;
+  } catch (error: any) {
+    // Check if the error is due to account already existing
+    if (error?.message?.includes("already in use") ||
+        error?.message?.includes("already been processed")) {
+      // Add a small random offset to eventId and retry once
+      const retryEventId = eventId.add(new BN(Math.floor(Math.random() * 1000)));
+
+      const [retryEventPda] = web3.PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("nft-evo-tickets"),
+          Buffer.from("event"),
+          retryEventId.toArrayLike(Buffer, "le", 8),
+        ],
+        PROGRAM_ID
+      );
+
+      console.log("Retrying with new event ID:", retryEventId.toString());
+
+      const tx = await program.methods
+        .createEvent(retryEventId, params.name, startTs, endTs)
+        .accounts({
+          organizer: wallet.publicKey,
+          eventAccount: retryEventPda,
+          systemProgram: web3.SystemProgram.programId,
+        })
+        .rpc();
+
+      console.log("Event created on retry! Transaction:", tx);
+      return tx;
+    }
+
+    // Re-throw other errors
+    throw error;
+  }
 }
