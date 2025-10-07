@@ -24,8 +24,24 @@ const PROGRAM_ID = process.env.PROGRAM_ID || '2epW2RyDJZwUe3AahRSuKB2usqPzqm1qck
 
 // Security middleware
 app.use(helmet());
+app.set('trust proxy', 1); // Trust first proxy
+``
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+  origin: (origin, callback) => {
+    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',');
+
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.error(`[CORS] Blocked request from origin: ${origin}`);
+      console.error(`[CORS] Allowed origins:`, allowedOrigins);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));

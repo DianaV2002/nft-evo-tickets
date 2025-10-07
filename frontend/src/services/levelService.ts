@@ -1,4 +1,4 @@
-const LEVEL_API_URL = import.meta.env.VITE_LEVEL_API_URL || 'http://localhost:3001';
+const LEVEL_API_URL = import.meta.env.VITE_LEVEL_API_URL || '';
 
 export interface Level {
   name: string;
