@@ -12,7 +12,6 @@ import {
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { useEffect, useState } from "react"
 import { fetchAllEvents, EventData, getEventStatus, formatEventDate, formatEventTime } from "@/services/eventService"
-import { PublicKey } from "@solana/web3.js"
 import { useEventStatusUpdate } from "@/hooks/useEventStatusUpdate"
 
 export default function MyEvents() {

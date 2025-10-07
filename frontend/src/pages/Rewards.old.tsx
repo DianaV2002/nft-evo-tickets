@@ -34,7 +34,7 @@ export default function Rewards() {
     {
       type: "Referral Bonus",
       description: "Friend joined and attended first event",
-      amount: "+0.5 SOL",
+      amount: "+20 USDT bonus",
       points: "+100 pts",
       date: "2 days ago",
       icon: "🎁"
@@ -209,7 +209,7 @@ export default function Rewards() {
                       <p className="text-xs text-muted-foreground">They join their first experience</p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="border-primary/30 text-primary">+0.5 SOL + 100 pts</Badge>
+                  <Badge variant="outline" className="border-primary/30 text-primary">+20 USDT bonus+ 100 pts</Badge>
                 </div>
               </div>
             </div>

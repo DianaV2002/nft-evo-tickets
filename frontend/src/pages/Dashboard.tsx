@@ -53,8 +53,8 @@ export default function Dashboard() {
     },
     {
       title: "Referral Earnings",
-      value: "3.2 SOL",
-      change: "+0.8 SOL",
+      value: "3.2 USDT",
+      change: "+0.8 USDT",
       icon: Gift,
       color: "text-primary"
     }
@@ -176,7 +176,7 @@ export default function Dashboard() {
                 <Share2 className="h-4 w-4" />
               </div>
               <p className="text-2xl font-bold mb-1">WELLNESS2024</p>
-              <p className="text-xs opacity-75">3 friends joined • 0.8 SOL earned</p>
+              <p className="text-xs opacity-75">3 friends joined • 25 USDT earned</p>
             </div>
 
             {/* Gamification Badges */}
@@ -227,7 +227,7 @@ export default function Dashboard() {
                 <div className="bg-gradient-primary h-2 rounded-full" style={{ width: '60%' }}></div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Refer 2 more friends to unlock "Community Connector" badge + 0.5 SOL bonus
+                Refer 2 more friends to unlock "Community Connector" badge + 20 USDT bonus
               </p>
             </div>
           </CardContent>
