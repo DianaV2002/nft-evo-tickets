@@ -254,10 +254,10 @@ export default function CreateEvent() {
                       <FormItem>
                         <FormLabel>Event Name</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="Neon Nights Festival" 
+                          <Input
+                            placeholder="Name your event..."
                             className="glass-input"
-                            {...field} 
+                            {...field}
                           />
                         </FormControl>
                         <FormMessage />
