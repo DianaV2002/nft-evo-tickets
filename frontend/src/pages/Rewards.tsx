@@ -271,7 +271,7 @@ export default function Rewards() {
                       <p className="text-xs text-muted-foreground">They join their first experience</p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="border-primary/30 text-primary">+0.5 SOL + 100 pts</Badge>
+                  <Badge variant="outline" className="border-primary/30 text-primary">+20 USDT bonus + 100 pts</Badge>
                 </div>
               </div>
             </div>

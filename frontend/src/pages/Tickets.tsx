@@ -90,13 +90,13 @@ export default function Tickets() {
         </Card>
         <Card className="glass-card">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-secondary">1.3 SOL</div>
+            <div className="text-2xl font-bold text-secondary">180 USDT</div>
             <p className="text-sm text-muted-foreground">Total Spent</p>
           </CardContent>
         </Card>
         <Card className="glass-card">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-accent">1.8 SOL</div>
+            <div className="text-2xl font-bold text-accent">130 USDT</div>
             <p className="text-sm text-muted-foreground">Current Value</p>
           </CardContent>
         </Card>
