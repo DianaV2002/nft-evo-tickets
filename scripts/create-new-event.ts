@@ -1,6 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { NftEvoTickets } from "../target/types/nft_evo_tickets";
+import BN from "bn.js";
 
 async function main() {
   const provider = anchor.AnchorProvider.env();
@@ -12,13 +13,13 @@ async function main() {
   console.log("Authority:", provider.wallet.publicKey.toString());
 
   // Generate a unique event ID based on timestamp
-  const eventId = new anchor.BN(Date.now());
+  const eventId = new BN(Date.now());
 
   // Event details
   const eventName = "NFT Evolution Summit 2025";
   const now = Math.floor(Date.now() / 1000);
-  const startTs = new anchor.BN(now + 86400); // Tomorrow
-  const endTs = new anchor.BN(now + 90000); // ~1 hour after start
+  const startTs = new BN(now + 86400); // Tomorrow
+  const endTs = new BN(now + 90000); // ~1 hour after start
 
   // Derive the event PDA
   const [eventPda] = anchor.web3.PublicKey.findProgramAddressSync(

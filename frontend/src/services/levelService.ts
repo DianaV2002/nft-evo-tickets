@@ -113,6 +113,50 @@ export function getActivityIcon(type: string): string {
 }
 
 /**
+ * Record an activity to earn points instantly
+ */
+export async function recordActivity(
+  walletAddress: string,
+  activityType: 'TICKET_MINTED' | 'TICKET_PURCHASED' | 'TICKET_SCANNED' | 'TICKET_COLLECTIBLE' | 'EVENT_CREATED',
+  transactionSignature?: string,
+  metadata?: any
+): Promise<{ success: boolean; pointsEarned: number; newTotal: number }> {
+  try {
+    const response = await fetch(`${LEVEL_API_URL}/api/activity`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        walletAddress,
+        activityType,
+        transactionSignature,
+        metadata,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to record activity');
+    }
+
+    return {
+      success: true,
+      pointsEarned: data.data.pointsEarned,
+      newTotal: data.data.newTotal,
+    };
+  } catch (error: any) {
+    console.error('Error recording activity:', error);
+    return {
+      success: false,
+      pointsEarned: 0,
+      newTotal: 0,
+    };
+  }
+}
+
+/**
  * Format time ago
  */
 export function timeAgo(dateString: string): string {

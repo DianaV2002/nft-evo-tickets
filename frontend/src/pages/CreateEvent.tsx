@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Calendar, MapPin, Clock, Users, DollarSign, Ticket, Loader2, CheckCircle2 } from "lucide-react"
+import { Calendar, MapPin, Clock, Users, DollarSign, Ticket, Loader2, CheckCircle2, Sparkles } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form"
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { createEvent } from "@/services/eventService"
+import { recordActivity } from "@/services/levelService"
 
 type EventFormData = {
   name: string
@@ -30,6 +31,7 @@ export default function CreateEvent() {
   const [isCreating, setIsCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [txSignature, setTxSignature] = useState<string | null>(null)
+  const [pointsEarned, setPointsEarned] = useState<number | null>(null)
 
   const onSubmit = async (data: EventFormData) => {
     if (!wallet.connected) {
@@ -41,6 +43,7 @@ export default function CreateEvent() {
       setIsCreating(true)
       setCreateError(null)
       setTxSignature(null)
+      setPointsEarned(null)
 
       // Combine date and time
       const startDateTime = new Date(`${data.date}T${data.time}`)
@@ -62,8 +65,32 @@ export default function CreateEvent() {
       setTxSignature(signature)
       console.log("Event created successfully:", signature)
 
+      // Record activity to instantly update user level
+      try {
+        const walletAddress = wallet.publicKey!.toBase58()
+        const result = await recordActivity(
+          walletAddress,
+          'EVENT_CREATED',
+          signature,
+          { eventName: data.name }
+        )
+
+        if (result.success) {
+          setPointsEarned(result.pointsEarned)
+          console.log(`Points earned: +${result.pointsEarned}, New total: ${result.newTotal}`)
+        }
+      } catch (activityError) {
+        console.error('Failed to record activity (but event was created):', activityError)
+        // Don't fail the entire operation if activity recording fails
+      }
+
       // Reset form after successful creation
       form.reset()
+
+      // Refresh the page after a short delay to show success message
+      setTimeout(() => {
+        window.location.reload()
+      }, 2000)
     } catch (err: any) {
       console.error("Failed to create event:", err)
       setCreateError(err.message || "Failed to create event on blockchain")
@@ -320,16 +347,31 @@ export default function CreateEvent() {
 
                   {/* Success Display */}
                   {txSignature && (
-                    <div className="p-4 bg-accent/10 border border-accent/20 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <CheckCircle2 className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium text-accent mb-1">Event created successfully!</p>
-                          <p className="text-xs text-muted-foreground break-all">
-                            Transaction: {txSignature.slice(0, 8)}...{txSignature.slice(-8)}
-                          </p>
+                    <div className="space-y-3">
+                      <div className="p-4 bg-accent/10 border border-accent/20 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <CheckCircle2 className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium text-accent mb-1">Event created successfully!</p>
+                            <p className="text-xs text-muted-foreground break-all">
+                              Transaction: {txSignature.slice(0, 8)}...{txSignature.slice(-8)}
+                            </p>
+                          </div>
                         </div>
                       </div>
+
+                      {pointsEarned !== null && (
+                        <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                          <div className="flex items-start gap-3">
+                            <Sparkles className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium text-primary mb-1">
+                               +{pointsEarned} points earned!
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
