@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { getLeaderboard, type UserLevel } from "@/services/levelService";
+import communityBanner from "@/assets/community-banner.jpg";
 
 export default function Community() {
   const navigate = useNavigate();
@@ -30,13 +31,18 @@ export default function Community() {
     fetchLeaderboard();
   }, []);
 
-  // Generate avatar emoji based on level
-  const getAvatarForLevel = (levelName: string): string => {
-    if (levelName.includes('Nature Sage')) return '🍃';
-    if (levelName.includes('Forest Guardian')) return '🌳';
-    if (levelName.includes('Bloom Tender')) return '🌸';
-    if (levelName.includes('Root Grower')) return '🌿';
-    return '🌱';
+  // Generate avatar color gradient based on level
+  const getAvatarGradient = (levelName: string): string => {
+    if (levelName.includes('Nature Sage')) return 'from-primary/30 to-primary/10';
+    if (levelName.includes('Forest Guardian')) return 'from-secondary/30 to-secondary/10';
+    if (levelName.includes('Bloom Tender')) return 'from-accent/30 to-accent/10';
+    if (levelName.includes('Root Grower')) return 'from-muted/50 to-muted/20';
+    return 'from-muted/40 to-muted/10';
+  };
+
+  // Generate avatar initials from wallet address
+  const getAvatarInitials = (address: string): string => {
+    return address.slice(2, 4).toUpperCase();
   };
 
   // Format wallet address for display
@@ -47,13 +53,18 @@ export default function Community() {
   return (
     <div className="space-y-8">
       {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-3xl">
-        <div className="absolute inset-0 bg-gradient-primary opacity-30"></div>
-        <div className="relative p-12 text-center">
-          <Users className="w-16 h-16 mx-auto mb-4 text-primary" />
-          <h1 className="text-5xl font-light mb-4 text-foreground">Our Community</h1>
+      <div className="relative overflow-hidden rounded-3xl h-80">
+        <img 
+          src={communityBanner} 
+          alt="Wellness community" 
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/50 to-background/30"></div>
+        <div className="relative h-full flex flex-col items-center justify-center p-12 text-center">
+          <Users className="w-16 h-16 mb-4 text-primary" />
+          <h1 className="text-5xl font-light mb-4 text-foreground">Our Wellness Community</h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto font-light">
-            Meet the souls who are weaving the fabric of our wellness collective
+            Meet the mindful souls growing together on this wellness journey
           </p>
         </div>
       </div>
@@ -108,19 +119,17 @@ export default function Community() {
               <CardContent className="p-0">
                 {/* Header with gradient overlay */}
                 <div className="relative h-32 bg-gradient-secondary overflow-hidden">
-                  <div className="absolute inset-0 flex items-center justify-center text-6xl opacity-40 group-hover:scale-110 transition-transform duration-500">
-                    {member.currentLevelData.emoji}
-                  </div>
-                  <div className="absolute bottom-4 left-6">
-                    <div className="text-5xl mb-2">{member.currentLevelData.emoji}</div>
+                  {/* Avatar Circle */}
+                  <div className={`absolute bottom-4 left-6 w-20 h-20 rounded-full bg-gradient-to-br ${getAvatarGradient(member.currentLevelData.name)} backdrop-blur-sm border-2 border-background flex items-center justify-center text-2xl font-semibold text-foreground shadow-lg`}>
+                    {getAvatarInitials(member.walletAddress)}
                   </div>
                   {/* Rank Badge */}
                   {index < 3 && (
                     <div className="absolute top-4 right-4">
                       <Badge className={`
-                        ${index === 0 ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' : ''}
-                        ${index === 1 ? 'bg-gray-400/20 text-gray-300 border-gray-400/30' : ''}
-                        ${index === 2 ? 'bg-amber-700/20 text-amber-400 border-amber-700/30' : ''}
+                        ${index === 0 ? 'bg-yellow-600/30 text-yellow-700 border-yellow-600/40' : ''}
+                        ${index === 1 ? 'bg-gray-500/30 text-gray-700 border-gray-500/40' : ''}
+                        ${index === 2 ? 'bg-amber-600/30 text-amber-700 border-amber-600/40' : ''}
                       `}>
                         #{index + 1}
                       </Badge>
@@ -155,14 +164,14 @@ export default function Community() {
                   <div className="flex flex-wrap gap-2">
                     <Badge
                       variant="outline"
-                      className="text-xs font-light border-primary/30 text-primary"
+                      className="text-xs font-light border-primary/40 text-primary bg-primary/5"
                     >
-                      {member.currentLevelData.emoji} {member.currentLevelData.name}
+                      {member.currentLevelData.name}
                     </Badge>
                     {index < 10 && (
                       <Badge
                         variant="outline"
-                        className="text-xs font-light border-accent/30 text-accent"
+                        className="text-xs font-light border-accent/40 text-accent bg-accent/5"
                       >
                         Top 10
                       </Badge>
@@ -194,17 +203,27 @@ export default function Community() {
           <Award className="w-12 h-12 mx-auto mb-4 text-accent" />
           <h3 className="text-2xl font-light mb-3">Join Our Growing Family</h3>
           <p className="text-muted-foreground mb-6 max-w-xl mx-auto font-light">
-            Every soul that joins strengthens our collective energy. Attend events, connect with others, and watch your impact grow.
+            Every soul that joins strengthens our collective energy. Attend events, connect with others, and watch your wellness journey unfold.
           </p>
-          <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">🌱</span>
-              <span>Start at 0 pts</span>
+          <div className="flex items-center justify-center gap-6 text-sm">
+            <div className="flex items-center gap-3 px-4 py-3 bg-muted/40 rounded-lg border border-border">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-muted/60 to-muted/20 flex items-center justify-center text-xs font-bold text-muted-foreground">
+                NEW
+              </div>
+              <div>
+                <p className="font-medium">Start your journey</p>
+                <p className="text-xs text-muted-foreground">0 points</p>
+              </div>
             </div>
-            <div className="text-primary">→</div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">🍃</span>
-              <span>Reach 5,000 pts</span>
+            <div className="text-primary text-2xl">→</div>
+            <div className="flex items-center gap-3 px-4 py-3 bg-primary/10 rounded-lg border border-primary/30">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/40 to-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+                SAGE
+              </div>
+              <div>
+                <p className="font-medium text-primary">Reach Nature Sage</p>
+                <p className="text-xs text-muted-foreground">5,000 points</p>
+              </div>
             </div>
           </div>
         </CardContent>

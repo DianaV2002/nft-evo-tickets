@@ -6,51 +6,51 @@
 
 @layer base {
   :root {
-    /* Wellness & nature theme */
-    --background: 140 20% 8%;
-    --foreground: 60 15% 95%;
+    /* Deeper wellness & spa theme with beige/green contrast */
+    --background: 35 20% 92%;
+    --foreground: 30 25% 20%;
 
-    --card: 140 15% 12%;
-    --card-foreground: 60 15% 95%;
+    --card: 40 15% 97%;
+    --card-foreground: 30 25% 20%;
 
-    --popover: 140 15% 12%;
-    --popover-foreground: 60 15% 95%;
+    --popover: 40 15% 97%;
+    --popover-foreground: 30 25% 20%;
 
-    /* Forest green primary */
-    --primary: 140 45% 45%;
+    /* Rich forest green primary */
+    --primary: 145 40% 42%;
     --primary-foreground: 0 0% 100%;
 
-    /* Sage secondary */
-    --secondary: 80 25% 60%;
-    --secondary-foreground: 140 30% 15%;
+    /* Warm sand/beige secondary */
+    --secondary: 35 35% 65%;
+    --secondary-foreground: 30 25% 20%;
 
-    --muted: 140 10% 18%;
-    --muted-foreground: 60 10% 65%;
+    --muted: 35 15% 88%;
+    --muted-foreground: 30 15% 45%;
 
-    /* Warm earth accent */
-    --accent: 35 60% 65%;
-    --accent-foreground: 140 30% 15%;
+    /* Deeper terracotta accent */
+    --accent: 20 45% 58%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 60 15% 95%;
+    --destructive: 0 62.8% 50.6%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 140 10% 20%;
-    --input: 140 10% 20%;
-    --ring: 140 45% 45%;
+    --border: 35 20% 82%;
+    --input: 35 20% 82%;
+    --ring: 145 40% 42%;
 
     --radius: 1rem;
 
-    /* Natural gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(140 45% 45%), hsl(160 50% 50%));
-    --gradient-secondary: linear-gradient(135deg, hsl(80 25% 60%), hsl(60 30% 70%));
-    --gradient-card: linear-gradient(135deg, hsl(140 15% 14%), hsl(140 15% 10%));
-    --gradient-glass: linear-gradient(135deg, rgba(104, 159, 116, 0.05), rgba(169, 169, 127, 0.05));
+    /* Rich natural gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(145 40% 42%), hsl(155 38% 48%));
+    --gradient-secondary: linear-gradient(135deg, hsl(35 35% 65%), hsl(30 30% 72%));
+    --gradient-card: linear-gradient(135deg, hsl(40 15% 97%), hsl(35 18% 94%));
+    --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.7), rgba(240, 230, 215, 0.5));
 
-    /* Soft natural shadows */
-    --shadow-glass: 0 8px 32px 0 rgba(104, 159, 116, 0.12);
-    --shadow-neon: 0 0 20px rgba(104, 159, 116, 0.3);
-    --shadow-depth: 0 10px 40px rgba(0, 0, 0, 0.4);
-    --shadow-card: 0 4px 20px rgba(104, 159, 116, 0.1);
+    /* Stronger natural shadows */
+    --shadow-glass: 0 8px 32px 0 rgba(100, 100, 80, 0.12);
+    --shadow-neon: 0 0 20px rgba(100, 140, 100, 0.25);
+    --shadow-depth: 0 10px 40px rgba(0, 0, 0, 0.12);
+    --shadow-card: 0 4px 20px rgba(100, 100, 80, 0.08);
 
     /* Sidebar */
     --sidebar-background: 224 24% 10%;
@@ -87,7 +87,7 @@
 
   body {
     @apply bg-background text-foreground;
-    background: linear-gradient(135deg, hsl(140 20% 8%) 0%, hsl(120 20% 10%) 100%);
+    background: linear-gradient(135deg, hsl(35 20% 92%) 0%, hsl(40 22% 90%) 100%);
     min-height: 100vh;
     @apply font-sans;
   }
@@ -99,7 +99,7 @@
     @apply backdrop-blur-sm border;
     background: var(--gradient-glass);
     box-shadow: var(--shadow-glass);
-    border: 1px solid hsl(140 45% 45% / 0.2);
+    border: 1px solid hsl(145 40% 42% / 0.18);
   }
 
   /* Neon glow */
@@ -147,7 +147,7 @@
   }
 
   @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 20px hsl(140 45% 45% / 0.25); }
-    50% { box-shadow: 0 0 30px hsl(160 50% 50% / 0.35); }
+    0%, 100% { box-shadow: 0 0 20px hsl(145 40% 42% / 0.25); }
+    50% { box-shadow: 0 0 30px hsl(155 38% 48% / 0.35); }
   }
 }

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
 import { getUserLevel } from "@/services/levelService"
 import { useWallet } from "@solana/wallet-adapter-react"
+import meditationBanner from "@/assets/meditation-banner.jpg"
 
 export default function Dashboard() {
   const { publicKey } = useWallet();
@@ -62,11 +63,11 @@ export default function Dashboard() {
   const upcomingEvents = [
     {
       id: 1,
-      name: "Forest Sound Healing Retreat",
+      name: "Sound Healing Retreat",
       date: "Jan 15, 2025",
       location: "Carpathian Mountains",
       spots: 12,
-      image: "🌲"
+      gradient: "from-primary/20 to-primary/5"
     },
     {
       id: 2,
@@ -74,7 +75,7 @@ export default function Dashboard() {
       date: "Jan 20, 2025",
       location: "Sacred Grove",
       spots: 30,
-      image: "🌙"
+      gradient: "from-secondary/20 to-secondary/5"
     },
     {
       id: 3,
@@ -82,18 +83,24 @@ export default function Dashboard() {
       date: "Jan 25, 2025",
       location: "Mountain Lake",
       spots: 8,
-      image: "❄️"
+      gradient: "from-accent/20 to-accent/5"
     }
   ]
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
-        <div>
-          <h1 className="text-4xl font-bold gradient-text">Your Evo Journey</h1>
-          <p className="text-muted-foreground mt-2">
-            Track your events, level up, and unlock exclusive rewards in the Evo Tickets community
+      {/* Header with Banner */}
+      <div className="relative overflow-hidden rounded-3xl h-60">
+        <img 
+          src={meditationBanner} 
+          alt="Your wellness journey" 
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/60 to-background/30"></div>
+        <div className="relative h-full flex flex-col justify-center p-8">
+          <h1 className="text-4xl md:text-5xl font-light mb-3 text-foreground">Your Wellness Journey</h1>
+          <p className="text-muted-foreground text-lg">
+            Track your events, grow mindfully, and unlock your inner peace
           </p>
         </div>
       </div>
@@ -134,7 +141,9 @@ export default function Dashboard() {
           <CardContent className="space-y-4">
             {upcomingEvents.map((event) => (
               <div key={event.id} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-muted/30 transition-colors duration-200 spatial-hover">
-                <div className="text-2xl">{event.image}</div>
+                <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${event.gradient} flex items-center justify-center`}>
+                  <Calendar className="w-6 h-6 text-foreground/70" />
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{event.name}</p>
                   <p className="text-sm text-muted-foreground">{event.location}</p>
@@ -177,23 +186,31 @@ export default function Dashboard() {
                 Your Achievements
               </h4>
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-muted/30 rounded-lg p-3 border border-border/50 text-center">
-                  <div className="text-2xl mb-1">🌱</div>
+                <div className="bg-primary/10 rounded-lg p-3 border border-primary/20 text-center">
+                  <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
+                    <Leaf className="w-5 h-5 text-primary" />
+                  </div>
                   <p className="text-xs font-medium">Seed Planter</p>
                   <p className="text-xs text-muted-foreground">5 referrals</p>
                 </div>
-                <div className="bg-muted/30 rounded-lg p-3 border border-border/50 text-center">
-                  <div className="text-2xl mb-1">🧘</div>
+                <div className="bg-secondary/10 rounded-lg p-3 border border-secondary/20 text-center">
+                  <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-gradient-to-br from-secondary/30 to-secondary/10 flex items-center justify-center">
+                    <Users className="w-5 h-5 text-secondary" />
+                  </div>
                   <p className="text-xs font-medium">Dedicated Soul</p>
                   <p className="text-xs text-muted-foreground">10 events</p>
                 </div>
-                <div className="bg-muted/30 rounded-lg p-3 border border-border/50 text-center opacity-50">
-                  <div className="text-2xl mb-1">🌳</div>
-                  <p className="text-xs font-medium">Forest Guardian</p>
+                <div className="bg-muted/20 rounded-lg p-3 border border-border/30 text-center opacity-50">
+                  <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-gradient-to-br from-muted/40 to-muted/10 flex items-center justify-center">
+                    <Award className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-xs font-medium">Guardian</p>
                   <p className="text-xs text-muted-foreground">15 referrals</p>
                 </div>
-                <div className="bg-muted/30 rounded-lg p-3 border border-border/50 text-center opacity-50">
-                  <div className="text-2xl mb-1">✨</div>
+                <div className="bg-muted/20 rounded-lg p-3 border border-border/30 text-center opacity-50">
+                  <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-gradient-to-br from-muted/40 to-muted/10 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-muted-foreground" />
+                  </div>
                   <p className="text-xs font-medium">Light Keeper</p>
                   <p className="text-xs text-muted-foreground">25 events</p>
                 </div>
