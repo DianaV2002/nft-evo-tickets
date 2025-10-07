@@ -2,6 +2,7 @@ import { Ticket, Calendar, MapPin, QrCode, Share2, DollarSign } from "lucide-rea
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { UsdcDisplay } from "@/components/ui/usdc-input"
 
 export default function Tickets() {
   const myTickets = [
@@ -11,8 +12,8 @@ export default function Tickets() {
       ticketType: "VIP Pass",
       date: "December 15, 2024",
       location: "Bucharest Arena",
-      purchasePrice: "0.8 SOL",
-      currentValue: "1.2 SOL",
+      purchasePriceUsdc: 80,
+      currentValueUsdc: 120,
       status: "active",
       qrCode: "QR123456",
       image: "🎫",
@@ -24,8 +25,8 @@ export default function Tickets() {
       ticketType: "General Admission",
       date: "December 20, 2024",
       location: "Virtual Reality Space",
-      purchasePrice: "0.3 SOL",
-      currentValue: "0.4 SOL",
+      purchasePriceUsdc: 30,
+      currentValueUsdc: 40,
       status: "active",
       qrCode: "QR789012",
       image: "🎟️",
@@ -37,8 +38,8 @@ export default function Tickets() {
       ticketType: "Early Bird",
       date: "November 30, 2024",
       location: "Game Center",
-      purchasePrice: "0.2 SOL",
-      currentValue: "0.2 SOL",
+      purchasePriceUsdc: 20,
+      currentValueUsdc: 20,
       status: "used",
       qrCode: "QR345678",
       image: "🎮",
@@ -142,11 +143,17 @@ export default function Tickets() {
               <div className="space-y-2 pt-2 border-t border-border/50">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Purchase Price</span>
-                  <span className="text-sm">{ticket.purchasePrice}</span>
+                  <UsdcDisplay
+                    amount={ticket.purchasePriceUsdc}
+                    className="text-sm"
+                  />
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Current Value</span>
-                  <span className="text-sm font-medium text-primary">{ticket.currentValue}</span>
+                  <UsdcDisplay
+                    amount={ticket.currentValueUsdc}
+                    className="text-sm font-medium text-primary"
+                  />
                 </div>
               </div>
 

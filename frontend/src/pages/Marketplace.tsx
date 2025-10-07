@@ -2,6 +2,7 @@ import { TrendingUp, Filter, Grid, List } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { UsdcDisplay } from "@/components/ui/usdc-input"
 
 export default function Marketplace() {
   const tickets = [
@@ -9,8 +10,8 @@ export default function Marketplace() {
       id: 1,
       eventName: "Neon Nights Festival",
       ticketType: "VIP Pass",
-      originalPrice: "0.8 SOL",
-      currentPrice: "1.2 SOL",
+      originalPriceUsdc: 80,
+      currentPriceUsdc: 120,
       seller: "CryptoMusicFan",
       rarity: "Rare",
       image: "🎫",
@@ -20,8 +21,8 @@ export default function Marketplace() {
       id: 2,
       eventName: "Digital Dreams",
       ticketType: "General Admission",
-      originalPrice: "0.3 SOL",
-      currentPrice: "0.4 SOL",
+      originalPriceUsdc: 30,
+      currentPriceUsdc: 40,
       seller: "TechGuru2024",
       rarity: "Common",
       image: "🎟️",
@@ -31,8 +32,8 @@ export default function Marketplace() {
       id: 3,
       eventName: "Cyberpunk Exhibition",
       ticketType: "Artist Pass",
-      originalPrice: "0.5 SOL",
-      currentPrice: "0.7 SOL",
+      originalPriceUsdc: 50,
+      currentPriceUsdc: 70,
       seller: "ArtLover99",
       rarity: "Epic",
       image: "🎨",
@@ -74,13 +75,13 @@ export default function Marketplace() {
         </Card>
         <Card className="glass-card">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-secondary">892 SOL</div>
+            <div className="text-2xl font-bold text-secondary">$89,200</div>
             <p className="text-sm text-muted-foreground">Volume (24h)</p>
           </CardContent>
         </Card>
         <Card className="glass-card">
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-accent">0.45 SOL</div>
+            <div className="text-2xl font-bold text-accent">$45</div>
             <p className="text-sm text-muted-foreground">Floor Price</p>
           </CardContent>
         </Card>
@@ -130,9 +131,16 @@ export default function Marketplace() {
 
                 <div className="flex items-center space-x-4">
                   <div className="text-right">
-                    <div className="font-bold text-primary">{ticket.currentPrice}</div>
+                    <UsdcDisplay
+                      amount={ticket.currentPriceUsdc}
+                      className="font-bold text-primary"
+                    />
                     <div className="text-xs text-muted-foreground line-through">
-                      {ticket.originalPrice}
+                      <UsdcDisplay
+                        amount={ticket.originalPriceUsdc}
+                        showSymbol={true}
+                        className="text-xs"
+                      />
                     </div>
                   </div>
                   

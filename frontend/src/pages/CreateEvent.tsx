@@ -6,60 +6,128 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { DateTimePicker } from "@/components/ui/date-time-picker"
+import { UsdcInput, UsdcDisplay } from "@/components/ui/usdc-input"
+import { ErrorDisplay, SuccessDisplay } from "@/components/ui/error-display"
 import { useForm } from "react-hook-form"
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { createEvent } from "@/services/eventService"
 import { recordActivity } from "@/services/levelService"
+import { mapError, UserFriendlyError } from "@/utils/errorMapper"
+import { usdcToLamportsWithPrice, formatUsdc } from "@/utils/usdcUtils"
 
 type EventFormData = {
   name: string
   description: string
-  date: string
-  time: string
-  endDate: string
-  endTime: string
+  startDateTime: Date | undefined
+  endDateTime: Date | undefined
   location: string
-  capacity: number
-  ticketPrice: number
-  ticketSupply: number
+  capacity: number | undefined
+  ticketPriceUsdc: number | undefined
+  ticketSupply: number | undefined
 }
 
 export default function CreateEvent() {
   const { connection } = useConnection()
   const wallet = useWallet()
-  const form = useForm<EventFormData>()
+  const form = useForm<EventFormData>({
+    defaultValues: {
+      name: "",
+      description: "",
+      startDateTime: undefined,
+      endDateTime: undefined,
+      location: "",
+      capacity: undefined,
+      ticketPriceUsdc: undefined,
+      ticketSupply: undefined,
+    },
+    mode: "onChange"
+  })
   const [isCreating, setIsCreating] = useState(false)
-  const [createError, setCreateError] = useState<string | null>(null)
+  const [userError, setUserError] = useState<UserFriendlyError | null>(null)
   const [txSignature, setTxSignature] = useState<string | null>(null)
   const [pointsEarned, setPointsEarned] = useState<number | null>(null)
 
+  // Watch form state for validation
+  const watchedFields = form.watch()
+  const formErrors = form.formState.errors
+  const isFormValid = form.formState.isValid
+  const isFormDirty = form.formState.isDirty
+
   const onSubmit = async (data: EventFormData) => {
     if (!wallet.connected) {
-      setCreateError("Please connect your wallet first")
+      setUserError({
+        title: 'Wallet Not Connected',
+        message: 'Please connect your wallet to continue.',
+        suggestion: 'Click the "Connect Wallet" button to get started.',
+        type: 'error'
+      })
       return
     }
 
     try {
       setIsCreating(true)
-      setCreateError(null)
+      setUserError(null)
       setTxSignature(null)
       setPointsEarned(null)
 
-      // Combine date and time
-      const startDateTime = new Date(`${data.date}T${data.time}`)
-      const endDateTime = new Date(`${data.endDate}T${data.endTime}`)
-
       // Validate dates
-      if (endDateTime <= startDateTime) {
-        setCreateError("End date/time must be after start date/time")
+      if (!data.startDateTime || !data.endDateTime) {
+        setUserError({
+          title: 'Missing Date Information',
+          message: 'Please select both start and end date/time.',
+          suggestion: 'Use the date and time pickers to select your event dates.',
+          type: 'error'
+        })
+        return
+      }
+
+      if (data.endDateTime <= data.startDateTime) {
+        setUserError({
+          title: 'Invalid Date Range',
+          message: 'End date/time must be after start date/time.',
+          suggestion: 'Please select an end date that comes after the start date.',
+          type: 'error'
+        })
+        return
+      }
+
+      // Validate pricing and quantities
+      if (!data.ticketPriceUsdc || data.ticketPriceUsdc <= 0) {
+        setUserError({
+          title: 'Invalid Ticket Price',
+          message: 'Ticket price must be greater than $0.',
+          suggestion: 'Please enter a valid ticket price (minimum $0.01).',
+          type: 'error'
+        })
+        return
+      }
+
+      if (!data.ticketSupply || data.ticketSupply <= 0) {
+        setUserError({
+          title: 'Invalid Ticket Quantity',
+          message: 'Number of tickets must be greater than 0.',
+          suggestion: 'Please enter a valid number of tickets to create.',
+          type: 'error'
+        })
+        return
+      }
+
+      if (!data.capacity || data.capacity <= 0) {
+        setUserError({
+          title: 'Invalid Event Capacity',
+          message: 'Event capacity must be greater than 0.',
+          suggestion: 'Please enter a valid event capacity.',
+          type: 'error'
+        })
         return
       }
 
       // Create event on-chain
       const signature = await createEvent(connection, wallet, {
         name: data.name,
-        startDate: startDateTime,
-        endDate: endDateTime,
+        startDate: data.startDateTime,
+        endDate: data.endDateTime,
       })
 
       setTxSignature(signature)
@@ -93,7 +161,8 @@ export default function CreateEvent() {
       }, 2000)
     } catch (err: any) {
       console.error("Failed to create event:", err)
-      setCreateError(err.message || "Failed to create event on blockchain")
+      const friendlyError = mapError(err)
+      setUserError(friendlyError)
     } finally {
       setIsCreating(false)
     }
@@ -163,88 +232,48 @@ export default function CreateEvent() {
                   />
 
                   {/* Start Date & Time */}
-                  <div className="space-y-2">
-                    <Label>Start Date & Time</Label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="date"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input
-                                type="date"
-                                className="glass-input"
-                                {...field}
-                                required
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="time"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input
-                                type="time"
-                                className="glass-input"
-                                {...field}
-                                required
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="startDateTime"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          Start Date & Time
+                        </FormLabel>
+                        <FormControl>
+                          <DateTimePicker
+                            date={field.value}
+                            onDateChange={field.onChange}
+                            placeholder="Select start date and time"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   {/* End Date & Time */}
-                  <div className="space-y-2">
-                    <Label>End Date & Time</Label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="endDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input
-                                type="date"
-                                className="glass-input"
-                                {...field}
-                                required
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="endTime"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input
-                                type="time"
-                                className="glass-input"
-                                {...field}
-                                required
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="endDateTime"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          End Date & Time
+                        </FormLabel>
+                        <FormControl>
+                          <DateTimePicker
+                            date={field.value}
+                            onDateChange={field.onChange}
+                            placeholder="Select end date and time"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   {/* Location */}
                   <FormField
@@ -273,18 +302,46 @@ export default function CreateEvent() {
                     <FormField
                       control={form.control}
                       name="capacity"
+                      rules={{
+                        required: "Event capacity is required",
+                        min: {
+                          value: 1,
+                          message: "Capacity must be at least 1"
+                        },
+                        max: {
+                          value: 1000000,
+                          message: "Maximum capacity is 1,000,000"
+                        },
+                        validate: (value) => {
+                          if (value <= 0) return "Capacity must be greater than 0"
+                          if (!Number.isInteger(value)) return "Capacity must be a whole number"
+                          return true
+                        }
+                      }}
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="flex items-center">
                             <Users className="h-4 w-4 mr-2" />
-                            Capacity
+                            Event Capacity
                           </FormLabel>
                           <FormControl>
                             <Input 
                               type="number"
+                              min="1"
+                              max="1000000"
+                              step="1"
                               placeholder="1000"
                               className="glass-input"
-                              {...field} 
+                              {...field}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '') {
+                                  field.onChange(undefined);
+                                } else {
+                                  const numValue = parseInt(value);
+                                  field.onChange(isNaN(numValue) ? undefined : numValue);
+                                }
+                              }}
                             />
                           </FormControl>
                           <FormMessage />
@@ -294,20 +351,34 @@ export default function CreateEvent() {
 
                     <FormField
                       control={form.control}
-                      name="ticketPrice"
+                      name="ticketPriceUsdc"
+                      rules={{
+                        required: "Ticket price is required",
+                        min: {
+                          value: 0.01,
+                          message: "Price must be at least $0.01"
+                        },
+                        max: {
+                          value: 10000,
+                          message: "Maximum price is $10,000"
+                        },
+                        validate: (value) => {
+                          if (value <= 0) return "Price must be greater than $0"
+                          if (value < 0.01) return "Price must be at least $0.01"
+                          return true
+                        }
+                      }}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="flex items-center">
-                            <DollarSign className="h-4 w-4 mr-2" />
-                            Price (SOL)
-                          </FormLabel>
                           <FormControl>
-                            <Input 
-                              type="number"
-                              step="0.01"
-                              placeholder="0.5"
-                              className="glass-input"
-                              {...field} 
+                            <UsdcInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              label="Ticket Price"
+                              placeholder="25.00"
+                              minAmount={0.01}
+                              maxAmount={10000}
+                              required
                             />
                           </FormControl>
                           <FormMessage />
@@ -318,18 +389,46 @@ export default function CreateEvent() {
                     <FormField
                       control={form.control}
                       name="ticketSupply"
+                      rules={{
+                        required: "Number of tickets is required",
+                        min: {
+                          value: 1,
+                          message: "Must have at least 1 ticket"
+                        },
+                        max: {
+                          value: 100000,
+                          message: "Maximum 100,000 tickets allowed"
+                        },
+                        validate: (value) => {
+                          if (value <= 0) return "Number of tickets must be greater than 0"
+                          if (!Number.isInteger(value)) return "Number of tickets must be a whole number"
+                          return true
+                        }
+                      }}
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="flex items-center">
                             <Ticket className="h-4 w-4 mr-2" />
-                            Tickets
+                            Number of Tickets
                           </FormLabel>
                           <FormControl>
                             <Input 
                               type="number"
-                              placeholder="500"
+                              min="1"
+                              max="100000"
+                              step="1"
+                              placeholder="100"
                               className="glass-input"
-                              {...field} 
+                              {...field}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '') {
+                                  field.onChange(undefined);
+                                } else {
+                                  const numValue = parseInt(value);
+                                  field.onChange(isNaN(numValue) ? undefined : numValue);
+                                }
+                              }}
                             />
                           </FormControl>
                           <FormMessage />
@@ -339,39 +438,38 @@ export default function CreateEvent() {
                   </div>
 
                   {/* Error Display */}
-                  {createError && (
-                    <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-                      <p className="text-sm text-destructive">{createError}</p>
-                    </div>
+                  {userError && (
+                    <ErrorDisplay
+                      error={userError}
+                      onRetry={() => {
+                        setUserError(null)
+                        form.handleSubmit(onSubmit)()
+                      }}
+                      onDismiss={() => setUserError(null)}
+                    />
                   )}
 
                   {/* Success Display */}
                   {txSignature && (
-                    <div className="space-y-3">
-                      <div className="p-4 bg-accent/10 border border-accent/20 rounded-lg">
-                        <div className="flex items-start gap-3">
-                          <CheckCircle2 className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-sm font-medium text-accent mb-1">Event created successfully!</p>
-                            <p className="text-xs text-muted-foreground break-all">
-                              Transaction: {txSignature.slice(0, 8)}...{txSignature.slice(-8)}
-                            </p>
-                          </div>
+                    <SuccessDisplay
+                      title="Event Created Successfully!"
+                      message="Your event has been created and is now live on the blockchain."
+                      txSignature={txSignature}
+                      onDismiss={() => setTxSignature(null)}
+                    />
+                  )}
+                  
+                  {/* Points Earned Display */}
+                  {pointsEarned !== null && (
+                    <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <Sparkles className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-primary mb-1">
+                           +{pointsEarned} points earned!
+                          </p>
                         </div>
                       </div>
-
-                      {pointsEarned !== null && (
-                        <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
-                          <div className="flex items-start gap-3">
-                            <Sparkles className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium text-primary mb-1">
-                               +{pointsEarned} points earned!
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
 
@@ -379,7 +477,7 @@ export default function CreateEvent() {
                   <Button
                     type="submit"
                     className="w-full bg-gradient-primary neon-glow spatial-hover"
-                    disabled={isCreating || !wallet.connected}
+                    disabled={isCreating || !wallet.connected || !isFormValid || Object.keys(formErrors).length > 0}
                   >
                     {isCreating ? (
                       <>
@@ -422,11 +520,11 @@ export default function CreateEvent() {
                   <Ticket className="h-16 w-16 text-primary/40" />
                   <div className="absolute top-2 right-2">
                     <div className={`px-2 py-1 rounded text-xs font-medium ${
-                      form.watch("date") && form.watch("time")
+                      form.watch("startDateTime")
                         ? "bg-accent text-accent-foreground"
                         : "bg-muted text-muted-foreground"
                     }`}>
-                      {form.watch("date") && form.watch("time") ? "Upcoming" : "Status"}
+                      {form.watch("startDateTime") ? "Upcoming" : "Status"}
                     </div>
                   </div>
                 </div>
@@ -447,26 +545,30 @@ export default function CreateEvent() {
                     <div className="flex items-center text-muted-foreground">
                       <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
                       <span>
-                        {form.watch("date") && form.watch("time")
-                          ? `${new Date(form.watch("date")).toLocaleDateString("en-US", {
+                        {form.watch("startDateTime")
+                          ? form.watch("startDateTime")!.toLocaleDateString("en-US", {
                               month: "long",
                               day: "numeric",
                               year: "numeric",
-                            })} at ${form.watch("time")}`
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })
                           : "Start: Select date and time"}
                       </span>
                     </div>
 
                     {/* End Date & Time */}
-                    {(form.watch("endDate") || form.watch("endTime")) && (
+                    {form.watch("endDateTime") && (
                       <div className="flex items-center text-muted-foreground">
                         <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
                         <span>
-                          {form.watch("endDate") && form.watch("endTime")
-                            ? `Ends ${new Date(form.watch("endDate")).toLocaleDateString("en-US", {
+                          {form.watch("endDateTime")
+                            ? `Ends ${form.watch("endDateTime")!.toLocaleDateString("en-US", {
                                 month: "short",
                                 day: "numeric",
-                              })} at ${form.watch("endTime")}`
+                                hour: "numeric",
+                                minute: "2-digit",
+                              })}`
                             : "End: Select date and time"}
                         </span>
                       </div>
@@ -492,11 +594,10 @@ export default function CreateEvent() {
                   {/* Pricing & Tickets */}
                   <div className="flex items-center justify-between pt-2 border-t border-border/50">
                     <div>
-                      <p className="text-2xl font-bold text-primary">
-                        {form.watch("ticketPrice")
-                          ? `${form.watch("ticketPrice")} SOL`
-                          : "0.0 SOL"}
-                      </p>
+                      <UsdcDisplay
+                        amount={form.watch("ticketPriceUsdc") || 0}
+                        className="text-2xl font-bold text-primary"
+                      />
                       <p className="text-xs text-muted-foreground">
                         {form.watch("ticketSupply") || 0} tickets available
                       </p>
