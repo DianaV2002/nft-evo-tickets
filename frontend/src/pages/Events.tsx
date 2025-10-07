@@ -2,6 +2,7 @@ import { Calendar, Clock, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useConnection } from "@solana/wallet-adapter-react"
 import { useEffect, useState } from "react"
 import { fetchAllEvents, EventData, getEventStatus, formatEventDate, formatEventTime } from "@/services/eventService"
@@ -11,6 +12,8 @@ export default function Events() {
   const [events, setEvents] = useState<EventData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   useEffect(() => {
     async function loadEvents() {
@@ -129,7 +132,13 @@ export default function Events() {
                     <Button variant="outline" className="flex-1">
                       View Details
                     </Button>
-                    <Button className="flex-1 bg-gradient-primary neon-glow spatial-hover">
+                    <Button
+                      className="flex-1 bg-gradient-primary neon-glow spatial-hover"
+                      onClick={() => {
+                        setSelectedEvent(event)
+                        setIsDialogOpen(true)
+                      }}
+                    >
                       Buy Ticket
                     </Button>
                   </div>
@@ -148,6 +157,42 @@ export default function Events() {
           </p>
         </div>
       )}
+
+      {/* Buy Ticket Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Buy Ticket</DialogTitle>
+            <DialogDescription>
+              Purchase your NFT ticket for {selectedEvent?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {selectedEvent && (
+              <>
+                <div className="space-y-2">
+                  <div className="flex items-center text-sm">
+                    <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <span>{formatEventDate(selectedEvent.startTs)}</span>
+                  </div>
+                  <div className="flex items-center text-sm">
+                    <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <span>{formatEventTime(selectedEvent.startTs, selectedEvent.endTs)}</span>
+                  </div>
+                </div>
+                <div className="pt-4 border-t">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Event ID: {selectedEvent.eventId}
+                  </p>
+                  <Button className="w-full bg-gradient-primary">
+                    Confirm Purchase
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
