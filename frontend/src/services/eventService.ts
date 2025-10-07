@@ -51,35 +51,84 @@ export async function fetchAllEvents(
     for (const account of accounts) {
       try {
         const data = account.account.data;
+        const dataLength = data.length;
+        
+        // Debug: Log account info
+        console.log(`Processing account ${account.pubkey.toString()}, data length: ${dataLength}`);
+        
+        // Check if we have enough data for the basic structure
+        if (dataLength < 8) {
+          console.warn(`Account ${account.pubkey.toString()} has insufficient data (${dataLength} bytes)`);
+          continue;
+        }
+        
+        // Log discriminator for debugging
+        const discriminator = data.slice(0, 8);
+        console.log(`Account ${account.pubkey.toString()} discriminator:`, discriminator.toString('hex'));
+        
         let offset = 8; // Skip discriminator
 
-        // Read authority (32 bytes)
+        // Check if we have enough data for authority (32 bytes)
+        if (offset + 32 > dataLength) {
+          console.warn(`Account ${account.pubkey.toString()} insufficient data for authority at offset ${offset}`);
+          continue;
+        }
         const authority = new PublicKey(data.slice(offset, offset + 32));
         offset += 32;
 
-        // Read scanner (32 bytes)
+        // Check if we have enough data for scanner (32 bytes)
+        if (offset + 32 > dataLength) {
+          console.warn(`Account ${account.pubkey.toString()} insufficient data for scanner at offset ${offset}`);
+          continue;
+        }
         const scanner = new PublicKey(data.slice(offset, offset + 32));
         offset += 32;
 
-        // Read event_id (8 bytes, little-endian u64)
+        // Check if we have enough data for event_id (8 bytes)
+        if (offset + 8 > dataLength) {
+          console.warn(`Account ${account.pubkey.toString()} insufficient data for event_id at offset ${offset}`);
+          continue;
+        }
         const eventId = data.readBigUInt64LE(offset);
         offset += 8;
 
-        // Read name (4 bytes length + string)
+        // Check if we have enough data for name length (4 bytes)
+        if (offset + 4 > dataLength) {
+          console.warn(`Account ${account.pubkey.toString()} insufficient data for name length at offset ${offset}`);
+          continue;
+        }
         const nameLength = data.readUInt32LE(offset);
         offset += 4;
+        
+        // Validate name length is reasonable and we have enough data
+        if (nameLength > 1000 || offset + nameLength > dataLength) {
+          console.warn(`Account ${account.pubkey.toString()} invalid name length ${nameLength} at offset ${offset}, data length ${dataLength}`);
+          continue;
+        }
         const name = data.slice(offset, offset + nameLength).toString("utf-8");
         offset += nameLength;
 
-        // Read start_ts (8 bytes, little-endian i64)
+        // Check if we have enough data for start_ts (8 bytes)
+        if (offset + 8 > dataLength) {
+          console.warn(`Account ${account.pubkey.toString()} insufficient data for start_ts at offset ${offset}`);
+          continue;
+        }
         const startTs = data.readBigInt64LE(offset);
         offset += 8;
 
-        // Read end_ts (8 bytes, little-endian i64)
+        // Check if we have enough data for end_ts (8 bytes)
+        if (offset + 8 > dataLength) {
+          console.warn(`Account ${account.pubkey.toString()} insufficient data for end_ts at offset ${offset}`);
+          continue;
+        }
         const endTs = data.readBigInt64LE(offset);
         offset += 8;
 
-        // Read bump (1 byte)
+        // Check if we have enough data for bump (1 byte)
+        if (offset + 1 > dataLength) {
+          console.warn(`Account ${account.pubkey.toString()} insufficient data for bump at offset ${offset}`);
+          continue;
+        }
         const bump = data.readUInt8(offset);
 
         events.push({
