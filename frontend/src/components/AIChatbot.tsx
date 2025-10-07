@@ -63,7 +63,7 @@ export default function AIChatbot() {
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
           {/* Tooltip */}
           <div className="bg-white shadow-md rounded-lg px-3 py-2 border border-purple-100">
-            <p className="text-xs text-gray-600">Need help. Chat with us! 🪷</p>
+            <p className="text-xs text-gray-600">Need help? Chat with us! 🪷</p>
           </div>
           <Button
             onClick={() => setIsOpen(true)}
