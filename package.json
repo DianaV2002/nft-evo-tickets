@@ -18,7 +18,8 @@
     "level-system:test": "npx tsx scripts/test-level-system.ts",
     "level-system:reset": "npx tsx scripts/reset-scanner.ts",
     "validate-ticket": "npx tsx scripts/validate-ticket.ts",
-    "create-qr-ticket": "npx tsx scripts/create-qr-ticket.ts"
+    "create-qr-ticket": "npx tsx scripts/create-qr-ticket.ts",
+    "start": "npx tsx backend/level-system/server.ts & cd frontend && npm run dev"
   },
   "keywords": [
     "solana",
