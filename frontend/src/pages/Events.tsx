@@ -113,13 +113,19 @@ export default function Events() {
 
             return (
               <Card key={event.publicKey} className="glass-card spatial-hover group overflow-hidden">
-                <CardHeader className="pb-4">
-                  <div className="flex items-start justify-between">
-                    <div className="text-4xl mb-2">🎫</div>
+                {/* Cover Photo */}
+                <div className="aspect-video relative overflow-hidden">
+                  <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                    <div className="text-6xl opacity-40">🎫</div>
+                  </div>
+                  <div className="absolute top-2 right-2">
                     <Badge className={getStatusColor(status)}>
                       {status}
                     </Badge>
                   </div>
+                </div>
+                
+                <CardHeader className="pb-4">
                   <CardTitle className="line-clamp-2 group-hover:text-primary transition-colors">
                     {event.name}
                   </CardTitle>

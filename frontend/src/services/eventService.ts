@@ -220,6 +220,7 @@ export interface CreateEventParams {
   name: string;
   startDate: Date;
   endDate: Date;
+  coverPhoto?: File | null;
 }
 
 export async function createEvent(
@@ -227,6 +228,12 @@ export async function createEvent(
   wallet: any,
   params: CreateEventParams
 ): Promise<string> {
+  // Handle cover photo upload (placeholder for now)
+  if (params.coverPhoto) {
+    console.log("Cover photo uploaded:", params.coverPhoto.name, "Size:", params.coverPhoto.size);
+    // TODO: Upload to IPFS or other storage service
+    // For now, we'll just log the file info
+  }
   if (!wallet.publicKey) {
     throw new Error("Wallet not connected");
   }

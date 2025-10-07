@@ -1,16 +1,18 @@
-import { useState } from "react"
-import { Calendar, MapPin, Clock, Users, DollarSign, Ticket, Loader2, CheckCircle2, Sparkles } from "lucide-react"
+import React, { useState, useRef } from "react"
+import { Calendar, MapPin, Clock, Users, DollarSign, Ticket, Loader2, CheckCircle2, Sparkles, Upload, Image, X, Leaf, Zap, Coins } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { UsdcInput, UsdcDisplay } from "@/components/ui/usdc-input"
 import { ErrorDisplay, SuccessDisplay } from "@/components/ui/error-display"
 import { useForm } from "react-hook-form"
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
+import { useNavigate } from "react-router-dom"
 import { createEvent } from "@/services/eventService"
 import { recordActivity } from "@/services/levelService"
 import { mapError, UserFriendlyError } from "@/utils/errorMapper"
@@ -25,11 +27,13 @@ type EventFormData = {
   capacity: number | undefined
   ticketPriceUsdc: number | undefined
   ticketSupply: number | undefined
+  coverPhoto: File | null
 }
 
 export default function CreateEvent() {
   const { connection } = useConnection()
   const wallet = useWallet()
+  const navigate = useNavigate()
   const form = useForm<EventFormData>({
     defaultValues: {
       name: "",
@@ -40,6 +44,7 @@ export default function CreateEvent() {
       capacity: undefined,
       ticketPriceUsdc: undefined,
       ticketSupply: undefined,
+      coverPhoto: null,
     },
     mode: "onChange"
   })
@@ -47,12 +52,42 @@ export default function CreateEvent() {
   const [userError, setUserError] = useState<UserFriendlyError | null>(null)
   const [txSignature, setTxSignature] = useState<string | null>(null)
   const [pointsEarned, setPointsEarned] = useState<number | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [showConfirmation, setShowConfirmation] = useState(false)
+  const [mintingCost, setMintingCost] = useState<number>(0)
+  const [carbonFootprintReduced, setCarbonFootprintReduced] = useState<number>(0)
 
   // Watch form state for validation
   const watchedFields = form.watch()
   const formErrors = form.formState.errors
   const isFormValid = form.formState.isValid
   const isFormDirty = form.formState.isDirty
+
+  // Calculate minting costs and carbon footprint
+  const calculateCostsAndImpact = () => {
+    const ticketSupply = watchedFields.ticketSupply || 0
+    const capacity = watchedFields.capacity || 0
+    
+    // Calculate minting cost (approximate: $0.01 per NFT + base transaction cost)
+    const baseCost = 0.5 // Base transaction cost in USDC
+    const perNftCost = 0.01 // Cost per NFT mint
+    const totalMintingCost = baseCost + (ticketSupply * perNftCost)
+    
+    // Calculate carbon footprint reduction (vs traditional paper tickets)
+    // Traditional event: ~0.5kg CO2 per attendee (transport, paper, etc.)
+    // Blockchain event: ~0.1kg CO2 per attendee (just digital)
+    const traditionalFootprint = capacity * 0.5 // kg CO2
+    const blockchainFootprint = capacity * 0.1 // kg CO2
+    const carbonReduction = traditionalFootprint - blockchainFootprint
+    
+    setMintingCost(totalMintingCost)
+    setCarbonFootprintReduced(carbonReduction)
+  }
+
+  // Update calculations when form changes
+  React.useEffect(() => {
+    calculateCostsAndImpact()
+  }, [watchedFields.ticketSupply, watchedFields.capacity])
 
   const onSubmit = async (data: EventFormData) => {
     if (!wallet.connected) {
@@ -65,11 +100,17 @@ export default function CreateEvent() {
       return
     }
 
+    // Show confirmation dialog with costs and impact
+    setShowConfirmation(true)
+  }
+
+  const handleConfirmCreation = async (data: EventFormData) => {
     try {
       setIsCreating(true)
       setUserError(null)
       setTxSignature(null)
       setPointsEarned(null)
+      setShowConfirmation(false)
 
       // Validate dates
       if (!data.startDateTime || !data.endDateTime) {
@@ -140,6 +181,7 @@ export default function CreateEvent() {
         name: data.name,
         startDate: data.startDateTime,
         endDate: data.endDateTime,
+        coverPhoto: data.coverPhoto,
       })
 
       setTxSignature(signature)
@@ -167,9 +209,9 @@ export default function CreateEvent() {
       // Reset form after successful creation
       form.reset()
 
-      // Refresh the page after a short delay to show success message
+      // Redirect to My Events page after a short delay to show success message
       setTimeout(() => {
-        window.location.reload()
+        navigate('/my-events')
       }, 2000)
     } catch (err: any) {
       console.error("Failed to create event:", err)
@@ -237,6 +279,114 @@ export default function CreateEvent() {
                             rows={4}
                             {...field} 
                           />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Cover Photo */}
+                  <FormField
+                    control={form.control}
+                    name="coverPhoto"
+                    rules={{
+                      validate: (value) => {
+                        if (value && value.size > 10 * 1024 * 1024) {
+                          return "File size must be less than 10MB"
+                        }
+                        if (value && !value.type.startsWith('image/')) {
+                          return "Please select an image file"
+                        }
+                        return true
+                      }
+                    }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cover Photo</FormLabel>
+                        <FormControl>
+                          <div className="space-y-4">
+                            {field.value ? (
+                              <div className="relative">
+                                <div className="w-full h-48 rounded-lg overflow-hidden border border-border/50">
+                                  <img 
+                                    src={URL.createObjectURL(field.value)} 
+                                    alt="Cover preview" 
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="sm"
+                                  className="absolute top-2 right-2"
+                                  onClick={() => {
+                                    field.onChange(null);
+                                    if (fileInputRef.current) {
+                                      fileInputRef.current.value = '';
+                                    }
+                                  }}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="border-2 border-dashed border-border/50 rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+                                <div className="flex flex-col items-center space-y-4">
+                                  <div className="p-4 bg-muted/30 rounded-full">
+                                    <Upload className="h-8 w-8 text-muted-foreground" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium">Upload Cover Photo</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      PNG, JPG, or WebP up to 10MB
+                                    </p>
+                                  </div>
+                                  <Input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        // Validate file size (10MB max)
+                                        if (file.size > 10 * 1024 * 1024) {
+                                          form.setError("coverPhoto", {
+                                            type: "manual",
+                                            message: "File size must be less than 10MB"
+                                          });
+                                          return;
+                                        }
+                                        // Validate file type
+                                        if (!file.type.startsWith('image/')) {
+                                          form.setError("coverPhoto", {
+                                            type: "manual",
+                                            message: "Please select an image file"
+                                          });
+                                          return;
+                                        }
+                                        field.onChange(file);
+                                        form.clearErrors("coverPhoto");
+                                      }
+                                      // Reset the input value to allow selecting the same file again
+                                      if (e.target) {
+                                        e.target.value = '';
+                                      }
+                                    }}
+                                    className="hidden"
+                                    id="cover-photo-upload"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => document.getElementById('cover-photo-upload')?.click()}
+                                  >
+                                    <Image className="h-4 w-4 mr-2" />
+                                    Choose Image
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -449,6 +599,44 @@ export default function CreateEvent() {
                     />
                   </div>
 
+                  {/* Cost and Impact Display */}
+                  {watchedFields.ticketSupply && watchedFields.capacity && (
+                    <div className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg p-4 border border-primary/20">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Coins className="h-5 w-5 text-primary" />
+                        <h3 className="font-semibold text-primary">NFT Minting Cost</h3>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Total Minting Cost</p>
+                          <p className="text-2xl font-bold text-primary">
+                            ${mintingCost.toFixed(2)} USDC
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            ${(mintingCost / (watchedFields.ticketSupply || 1)).toFixed(3)} per NFT
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Carbon Footprint Reduced</p>
+                          <p className="text-2xl font-bold text-green-600">
+                            {carbonFootprintReduced.toFixed(1)} kg CO₂
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            vs traditional paper tickets
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Leaf className="h-4 w-4 text-green-600" />
+                          <p className="text-sm text-green-700 dark:text-green-300">
+                            🌱 You're creating a sustainable event! This blockchain approach reduces environmental impact by {((carbonFootprintReduced / (watchedFields.capacity * 0.5)) * 100).toFixed(0)}% compared to traditional events.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Error Display */}
                   {userError && (
                     <ErrorDisplay
@@ -465,7 +653,7 @@ export default function CreateEvent() {
                   {txSignature && (
                     <SuccessDisplay
                       title="Event Created Successfully!"
-                      message="Your event has been created and is now live on the blockchain."
+                      message="Your event has been created and is now live on the blockchain. You'll be redirected to your events page shortly."
                       txSignature={txSignature}
                       onDismiss={() => setTxSignature(null)}
                     />
@@ -527,19 +715,38 @@ export default function CreateEvent() {
             <CardContent className="space-y-4">
               {/* Event Card Preview */}
               <div className="border border-border/50 rounded-lg overflow-hidden">
-                {/* Event Image Placeholder */}
-                <div className="aspect-video bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center relative">
-                  <Ticket className="h-16 w-16 text-primary/40" />
-                  <div className="absolute top-2 right-2">
-                    <div className={`px-2 py-1 rounded text-xs font-medium ${
-                      form.watch("startDateTime")
-                        ? "bg-accent text-accent-foreground"
-                        : "bg-muted text-muted-foreground"
-                    }`}>
-                      {form.watch("startDateTime") ? "Upcoming" : "Status"}
+                {/* Event Image */}
+                {watchedFields.coverPhoto ? (
+                  <div className="aspect-video relative">
+                    <img 
+                      src={URL.createObjectURL(watchedFields.coverPhoto)} 
+                      alt="Event cover" 
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-2 right-2">
+                      <div className={`px-2 py-1 rounded text-xs font-medium ${
+                        form.watch("startDateTime")
+                          ? "bg-accent text-accent-foreground"
+                          : "bg-muted text-muted-foreground"
+                      }`}>
+                        {form.watch("startDateTime") ? "Upcoming" : "Status"}
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="aspect-video bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center relative">
+                    <Ticket className="h-16 w-16 text-primary/40" />
+                    <div className="absolute top-2 right-2">
+                      <div className={`px-2 py-1 rounded text-xs font-medium ${
+                        form.watch("startDateTime")
+                          ? "bg-accent text-accent-foreground"
+                          : "bg-muted text-muted-foreground"
+                      }`}>
+                        {form.watch("startDateTime") ? "Upcoming" : "Status"}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Event Details */}
                 <div className="p-4 space-y-3">
@@ -637,6 +844,127 @@ export default function CreateEvent() {
           </Card>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl flex items-center gap-2">
+              <Sparkles className="h-6 w-6 text-primary" />
+              Ready to Mint Your NFT Tickets?
+            </DialogTitle>
+            <DialogDescription>
+              Confirm your event details and see the amazing impact you're creating!
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Event Summary */}
+            <div className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg p-4">
+              <h3 className="font-semibold text-lg mb-3">{watchedFields.name || "Your Event"}</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Date & Time</p>
+                  <p className="font-medium">
+                    {watchedFields.startDateTime ? 
+                      watchedFields.startDateTime.toLocaleDateString() + " " + 
+                      watchedFields.startDateTime.toLocaleTimeString() : 
+                      "Not set"
+                    }
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Location</p>
+                  <p className="font-medium">{watchedFields.location || "Not set"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Tickets</p>
+                  <p className="font-medium">{watchedFields.ticketSupply || 0} NFTs</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Capacity</p>
+                  <p className="font-medium">{watchedFields.capacity || 0} attendees</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Cost Breakdown */}
+            <div className="bg-muted/30 rounded-lg p-4">
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <Coins className="h-5 w-5 text-primary" />
+                Minting Cost Breakdown
+              </h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Base transaction cost:</span>
+                  <span>$0.50 USDC</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>NFT minting ({watchedFields.ticketSupply || 0} × $0.01):</span>
+                  <span>${((watchedFields.ticketSupply || 0) * 0.01).toFixed(2)} USDC</span>
+                </div>
+                <div className="flex justify-between font-semibold text-lg border-t pt-2">
+                  <span>Total cost:</span>
+                  <span className="text-primary">${mintingCost.toFixed(2)} USDC</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Environmental Impact */}
+            <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+              <h4 className="font-semibold mb-3 flex items-center gap-2 text-green-700 dark:text-green-300">
+                <Leaf className="h-5 w-5" />
+                Environmental Impact
+              </h4>
+              <div className="space-y-3">
+                <div className="text-center">
+                  <div className="text-4xl font-bold text-green-600 mb-2">
+                    {carbonFootprintReduced.toFixed(1)} kg CO₂
+                  </div>
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    Carbon footprint reduced compared to traditional paper tickets
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-green-800/30 rounded-lg p-3">
+                  <p className="text-sm text-green-700 dark:text-green-300 text-center">
+                    🌱 <strong>Amazing!</strong> You're reducing environmental impact by{" "}
+                    <strong>{((carbonFootprintReduced / (watchedFields.capacity * 0.5)) * 100).toFixed(0)}%</strong>{" "}
+                    compared to traditional events. Every NFT ticket helps save the planet! 🌍✨
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-4">
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={() => setShowConfirmation(false)}
+              >
+                Review Details
+              </Button>
+              <Button 
+                className="flex-1 bg-gradient-primary"
+                onClick={() => handleConfirmCreation(watchedFields)}
+                disabled={isCreating}
+              >
+                {isCreating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating Event...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4 mr-2" />
+                    Mint NFT Tickets!
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

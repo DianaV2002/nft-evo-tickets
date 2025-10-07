@@ -30,16 +30,22 @@ export default function MyEvents() {
 
   useEffect(() => {
     async function loadMyEvents() {
-      if (!wallet.publicKey) {
+      console.log("Loading My Events - Wallet connected:", wallet.connected, "Public key:", wallet.publicKey?.toString())
+      
+      if (!wallet.connected || !wallet.publicKey) {
+        console.log("Wallet not connected, setting loading to false")
         setLoading(false)
+        setEvents([])
         return
       }
 
       try {
         setLoading(true)
         setError(null)
+        console.log("Fetching events for wallet:", wallet.publicKey.toString())
         // Fetch events created by this wallet
         const fetchedEvents = await fetchAllEvents(connection, wallet.publicKey)
+        console.log("Fetched events:", fetchedEvents.length)
         setEvents(fetchedEvents)
       } catch (err) {
         console.error("Failed to load my events:", err)
@@ -50,7 +56,7 @@ export default function MyEvents() {
     }
 
     loadMyEvents()
-  }, [connection, wallet.publicKey])
+  }, [connection, wallet.connected, wallet.publicKey])
 
 
   const getStatusColor = (status: string) => {
@@ -143,8 +149,18 @@ export default function MyEvents() {
         </div>
       )}
 
+      {/* Wallet Not Connected State */}
+      {!wallet.connected && !loading && (
+        <div className="flex flex-col items-center justify-center py-20">
+          <p className="text-muted-foreground text-lg">Please connect your wallet to view your events.</p>
+          <Button className="mt-4" onClick={() => window.location.href = '/wallet-connect'}>
+            Connect Wallet
+          </Button>
+        </div>
+      )}
+
       {/* Empty State */}
-      {!loading && !error && events.length === 0 && (
+      {!loading && !error && wallet.connected && events.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20">
           <p className="text-muted-foreground text-lg">You haven't created any events yet.</p>
           <Button className="mt-4" onClick={() => window.location.href = '/create-event'}>
@@ -163,13 +179,19 @@ export default function MyEvents() {
 
             return (
               <Card key={event.publicKey} className="glass-card spatial-hover group overflow-hidden">
-                <CardHeader className="pb-4">
-                  <div className="flex items-start justify-between">
-                    <div className="text-4xl mb-2">🎫</div>
+                {/* Cover Photo */}
+                <div className="aspect-video relative overflow-hidden">
+                  <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                    <div className="text-6xl opacity-40">🎫</div>
+                  </div>
+                  <div className="absolute top-2 right-2">
                     <Badge className={getStatusColor(status)}>
                       {status}
                     </Badge>
                   </div>
+                </div>
+                
+                <CardHeader className="pb-4">
                   <CardTitle className="line-clamp-2 group-hover:text-primary transition-colors">
                     {event.name}
                   </CardTitle>
