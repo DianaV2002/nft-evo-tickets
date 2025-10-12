@@ -10,6 +10,8 @@ export interface EventData {
   name: string;
   startTs: number;
   endTs: number;
+  ticketsSold: number;
+  ticketSupply: number;
   bump: number;
 }
 
@@ -124,6 +126,33 @@ export async function fetchAllEvents(
         const endTs = data.readBigInt64LE(offset);
         offset += 8;
 
+        // Try to read tickets_sold (4 bytes) - default to 0 if not present or invalid
+        let ticketsSold = 0;
+        let ticketSupply = 100; // Default supply for old events
+
+        if (offset + 4 <= dataLength) {
+          const rawTicketsSold = data.readUInt32LE(offset);
+          // Only use the value if it seems reasonable (not corrupted data)
+          if (rawTicketsSold < 1000000) {
+            ticketsSold = rawTicketsSold;
+          }
+          offset += 4;
+        } else {
+          console.log(`Account ${account.pubkey.toString()} is an old event, using default tickets_sold=0`);
+        }
+
+        // Try to read ticket_supply (4 bytes) - default to 100 if not present or invalid
+        if (offset + 4 <= dataLength) {
+          const rawTicketSupply = data.readUInt32LE(offset);
+          // Only use the value if it seems reasonable (not corrupted data or 0)
+          if (rawTicketSupply > 0 && rawTicketSupply < 1000000) {
+            ticketSupply = rawTicketSupply;
+          }
+          offset += 4;
+        } else {
+          console.log(`Account ${account.pubkey.toString()} is an old event, using default ticket_supply=100`);
+        }
+
         // Check if we have enough data for bump (1 byte)
         if (offset + 1 > dataLength) {
           console.warn(`Account ${account.pubkey.toString()} insufficient data for bump at offset ${offset}`);
@@ -139,6 +168,8 @@ export async function fetchAllEvents(
           name,
           startTs: Number(startTs),
           endTs: Number(endTs),
+          ticketsSold,
+          ticketSupply,
           bump,
         };
         
@@ -168,6 +199,118 @@ export async function fetchAllEvents(
     console.error("Error fetching events:", error);
     return [];
   }
+}
+
+/**
+ * Fetch specific events by their public keys (useful for fetching events associated with tickets)
+ * This doesn't filter by date, so it can fetch ended events too
+ */
+export async function fetchEventsByKeys(
+  connection: Connection,
+  eventKeys: string[]
+): Promise<Map<string, EventData>> {
+  const eventsMap = new Map<string, EventData>();
+
+  try {
+    console.log(`🔍 Fetching ${eventKeys.length} specific events...`);
+
+    // Fetch each event account
+    const promises = eventKeys.map(async (eventKey) => {
+      try {
+        const publicKey = new PublicKey(eventKey);
+        const accountInfo = await connection.getAccountInfo(publicKey);
+
+        if (!accountInfo || accountInfo.owner.toString() !== PROGRAM_ID.toString()) {
+          console.warn(`Event ${eventKey} not found or invalid owner`);
+          return null;
+        }
+
+        const data = accountInfo.data;
+        let offset = 8; // Skip discriminator
+
+        const authority = new PublicKey(data.slice(offset, offset + 32));
+        offset += 32;
+
+        const scanner = new PublicKey(data.slice(offset, offset + 32));
+        offset += 32;
+
+        const eventId = data.readBigUInt64LE(offset);
+        offset += 8;
+
+        const nameLength = data.readUInt32LE(offset);
+        offset += 4;
+
+        if (nameLength > 1000 || offset + nameLength > data.length) {
+          console.warn(`Invalid name length for event ${eventKey}`);
+          return null;
+        }
+
+        const name = data.slice(offset, offset + nameLength).toString("utf-8");
+        offset += nameLength;
+
+        const startTs = data.readBigInt64LE(offset);
+        offset += 8;
+
+        const endTs = data.readBigInt64LE(offset);
+        offset += 8;
+
+        // Try to read tickets_sold (4 bytes) - default to 0 if not present or invalid
+        let ticketsSold = 0;
+        let ticketSupply = 100; // Default supply for old events
+
+        if (offset + 4 <= data.length) {
+          const rawTicketsSold = data.readUInt32LE(offset);
+          // Only use the value if it seems reasonable (not corrupted data)
+          if (rawTicketsSold < 1000000) {
+            ticketsSold = rawTicketsSold;
+          }
+          offset += 4;
+        }
+
+        // Try to read ticket_supply (4 bytes) - default to 100 if not present or invalid
+        if (offset + 4 <= data.length) {
+          const rawTicketSupply = data.readUInt32LE(offset);
+          // Only use the value if it seems reasonable (not corrupted data or 0)
+          if (rawTicketSupply > 0 && rawTicketSupply < 1000000) {
+            ticketSupply = rawTicketSupply;
+          }
+          offset += 4;
+        }
+
+        const bump = data.readUInt8(offset);
+
+        return {
+          publicKey: eventKey,
+          authority: authority.toString(),
+          scanner: scanner.toString(),
+          eventId: eventId.toString(),
+          name,
+          startTs: Number(startTs),
+          endTs: Number(endTs),
+          ticketsSold,
+          ticketSupply,
+          bump,
+        };
+      } catch (err) {
+        console.error(`Error fetching event ${eventKey}:`, err);
+        return null;
+      }
+    });
+
+    const results = await Promise.all(promises);
+
+    results.forEach((eventData) => {
+      if (eventData) {
+        eventsMap.set(eventData.publicKey, eventData);
+      }
+    });
+
+    console.log(`✅ Fetched ${eventsMap.size} events successfully`);
+  } catch (error) {
+    console.error("Error fetching events by keys:", error);
+  }
+
+  return eventsMap;
 }
 
 export function getEventStatus(startTs: number, endTs: number): "upcoming" | "live" | "ended" {
@@ -220,6 +363,7 @@ export interface CreateEventParams {
   name: string;
   startDate: Date;
   endDate: Date;
+  ticketSupply: number;
   coverPhoto?: File | null;
 }
 
@@ -278,7 +422,7 @@ export async function createEvent(
   try {
     // Call create_event instruction
     const tx = await program.methods
-      .createEvent(eventId, params.name, startTs, endTs)
+      .createEvent(eventId, params.name, startTs, endTs, params.ticketSupply)
       .accounts({
         organizer: wallet.publicKey,
         eventAccount: eventPda,
@@ -308,7 +452,7 @@ export async function createEvent(
       console.log("Retrying with new event ID:", retryEventId.toString());
 
       const tx = await program.methods
-        .createEvent(retryEventId, params.name, startTs, endTs)
+        .createEvent(retryEventId, params.name, startTs, endTs, params.ticketSupply)
         .accounts({
           organizer: wallet.publicKey,
           eventAccount: retryEventPda,

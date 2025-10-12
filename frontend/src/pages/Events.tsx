@@ -3,17 +3,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useConnection } from "@solana/wallet-adapter-react"
+import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { useEffect, useState } from "react"
 import { fetchAllEvents, EventData, getEventStatus, formatEventDate, formatEventTime } from "@/services/eventService"
 import { useEventStatusUpdate } from "@/hooks/useEventStatusUpdate"
+import { buyEventTicket, fetchActiveListings, buyMarketplaceTicket } from "@/services/ticketService"
+import { recordActivity } from "@/services/levelService"
+import { PublicKey } from "@solana/web3.js"
+import { LAMPORTS_PER_SOL } from "@solana/web3.js"
+import { toast } from "sonner"
 
 export default function Events() {
   const { connection } = useConnection()
+  const wallet = useWallet()
   const [events, setEvents] = useState<EventData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+  const [buyingTicket, setBuyingTicket] = useState(false)
+  const [listings, setListings] = useState<any[]>([])
+
   // Use the status update hook
   const { lastUpdate, statusChanges, hasRecentChanges } = useEventStatusUpdate(events)
   const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null)
@@ -39,6 +47,74 @@ export default function Events() {
 
     loadEvents()
   }, [connection])
+
+  const handleBuyTicket = async () => {
+    if (!wallet.connected || !wallet.publicKey) {
+      toast.error("Please connect your wallet first")
+      return
+    }
+
+    if (!selectedEvent) {
+      toast.error("No event selected")
+      return
+    }
+
+    try {
+      setBuyingTicket(true)
+      toast.loading("Purchasing your ticket...")
+
+      // Buy a ticket from event (price: 0.1 SOL as example)
+      const ticketPrice = 0.1 * LAMPORTS_PER_SOL;
+      const tx = await buyEventTicket(
+        connection,
+        wallet,
+        new PublicKey(selectedEvent.publicKey),
+        ticketPrice,
+        undefined // seat number (optional)
+      )
+
+      toast.dismiss()
+      toast.success("Ticket purchased successfully!")
+      toast.success(`Transaction: ${tx.slice(0, 8)}...${tx.slice(-8)}`)
+
+      // Record activity for points
+      try {
+        const result = await recordActivity(
+          wallet.publicKey.toString(),
+          'TICKET_PURCHASED',
+          tx,
+          { eventName: selectedEvent.name }
+        )
+
+        if (result.success && result.pointsEarned > 0) {
+          toast.success(`+${result.pointsEarned} points earned!`)
+        }
+      } catch (activityError) {
+        console.error('Failed to record activity:', activityError)
+        // Don't fail the flow if points recording fails
+      }
+
+      setIsDialogOpen(false)
+    } catch (error: any) {
+      console.error("Error buying ticket:", error)
+      toast.dismiss()
+
+      if (error.message?.includes("already in use")) {
+        toast.error("You already have a ticket for this event!")
+        toast.info("Each wallet can only own one ticket per event.")
+      } else if (error.message?.includes("insufficient")) {
+        toast.error("Insufficient funds!")
+        toast.info("You need more SOL to purchase this ticket.")
+      } else if (error.message?.includes("InvalidInput") || error.message?.includes("sold out") || error.message?.includes("capacity")) {
+        toast.error("Event is sold out!")
+        toast.info("All tickets have been sold for this event.")
+      } else {
+        toast.error(error.message || "Failed to purchase ticket")
+      }
+    } finally {
+      setBuyingTicket(false)
+    }
+  }
 
 
   const getStatusColor = (status: string) => {
@@ -118,10 +194,15 @@ export default function Events() {
                   <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
                     <div className="text-6xl opacity-40">🎫</div>
                   </div>
-                  <div className="absolute top-2 right-2">
+                  <div className="absolute top-2 right-2 flex gap-2">
                     <Badge className={getStatusColor(status)}>
                       {status}
                     </Badge>
+                    {event.ticketsSold >= event.ticketSupply && (
+                      <Badge className="bg-destructive text-destructive-foreground">
+                        Sold Out
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 
@@ -156,13 +237,7 @@ export default function Events() {
                     <div className="flex justify-between items-center text-sm mt-1">
                       <span className="text-muted-foreground">Places Left</span>
                       <span className="text-xs font-medium text-primary">
-                        {(() => {
-                          const totalCapacity = 100;
-                          // Use event ID as seed for consistent numbers
-                          const seed = parseInt(event.eventId.slice(-2), 16) || 0;
-                          const ticketsSold = (seed % 30) + 10; // 10-40 tickets sold
-                          return totalCapacity - ticketsSold;
-                        })()} available
+                        {event.ticketSupply - event.ticketsSold} available
                       </span>
                     </div>
                     
@@ -190,11 +265,11 @@ export default function Events() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Capacity:</span>
-                          <span className="font-mono">100 total</span>
+                          <span className="font-mono">{event.ticketSupply} total</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Sold:</span>
-                          <span className="font-mono">{Math.floor(Math.random() * 20)} tickets</span>
+                          <span className="font-mono">{event.ticketsSold} tickets</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Account:</span>
@@ -220,8 +295,8 @@ export default function Events() {
 
                   {/* Actions */}
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="flex-1"
                       onClick={() => {
                         setSelectedEvent(event)
@@ -236,8 +311,13 @@ export default function Events() {
                         setSelectedEvent(event)
                         setIsDialogOpen(true)
                       }}
+                      disabled={!wallet.connected || event.ticketsSold >= event.ticketSupply}
                     >
-                      Buy Ticket
+                      {event.ticketsSold >= event.ticketSupply
+                        ? "Sold Out"
+                        : wallet.connected
+                          ? "Buy Ticket"
+                          : "Connect Wallet"}
                     </Button>
                   </div>
                 </CardContent>
@@ -299,34 +379,22 @@ export default function Events() {
                   
                   {/* Event Stats */}
                   <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-                    {(() => {
-                      const totalCapacity = 100;
-                      // Use event ID as seed for consistent numbers
-                      const seed = parseInt(selectedEvent.eventId.slice(-2), 16) || 0;
-                      const ticketsSold = (seed % 30) + 10; // 10-40 tickets sold
-                      const placesLeft = totalCapacity - ticketsSold;
-                      
-                      return (
-                        <>
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-primary">
-                              {placesLeft}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Places Left</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-secondary">
-                              {ticketsSold}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Tickets Sold</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-accent">{totalCapacity}</p>
-                            <p className="text-xs text-muted-foreground">Total Capacity</p>
-                          </div>
-                        </>
-                      );
-                    })()}
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-primary">
+                        {selectedEvent.ticketSupply - selectedEvent.ticketsSold}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Places Left</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-secondary">
+                        {selectedEvent.ticketsSold}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Tickets Sold</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-accent">{selectedEvent.ticketSupply}</p>
+                      <p className="text-xs text-muted-foreground">Total Capacity</p>
+                    </div>
                   </div>
                 </div>
 
@@ -362,15 +430,23 @@ export default function Events() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-3 pt-4 border-t">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="flex-1"
                     onClick={() => setIsDialogOpen(false)}
                   >
                     Close
                   </Button>
-                  <Button className="flex-1 bg-gradient-primary">
-                    Buy Ticket
+                  <Button
+                    className="flex-1 bg-gradient-primary"
+                    onClick={handleBuyTicket}
+                    disabled={buyingTicket || !wallet.connected || selectedEvent.ticketsSold >= selectedEvent.ticketSupply}
+                  >
+                    {buyingTicket
+                      ? "Purchasing..."
+                      : selectedEvent.ticketsSold >= selectedEvent.ticketSupply
+                        ? "Sold Out"
+                        : "Buy Ticket"}
                   </Button>
                 </div>
               </>

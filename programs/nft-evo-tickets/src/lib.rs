@@ -15,12 +15,13 @@ use crate::instructions::initialize_event::__client_accounts_initialize_event_ct
 use crate::instructions::create_event::__client_accounts_create_event_ctx;
 use crate::instructions::mint_ticket::__client_accounts_mint_ticket_ctx;
 use crate::instructions::list_ticket::__client_accounts_list_ticket_ctx;
-use crate::instructions::buy_ticket::__client_accounts_buy_ticket_ctx;
+use crate::instructions::buy_marketplace_ticket::__client_accounts_buy_marketplace_ticket_ctx;
 use crate::instructions::cancel_listing::__client_accounts_cancel_listing_ctx;
 use crate::instructions::update_ticket::__client_accounts_update_ticket;
 use crate::instructions::update_ticket_metadata::__client_accounts_update_ticket_metadata;
 use crate::instructions::upgrade_to_collectible::__client_accounts_upgrade_to_collectible;
 use crate::instructions::set_scanner::__client_accounts_set_scanner;
+use crate::instructions::buy_event_ticket::__client_accounts_buy_event_ticket_ctx;
 
 #[program]
 pub mod nft_evo_tickets {
@@ -46,8 +47,9 @@ pub mod nft_evo_tickets {
         name: String,
         start_ts: i64,
         end_ts: i64,
+        ticket_supply: u32,
     ) -> Result<()> {
-        create_event_handler(ctx, event_id, name, start_ts, end_ts)
+        create_event_handler(ctx, event_id, name, start_ts, end_ts, ticket_supply)
     }
 
     pub fn mint_ticket(
@@ -66,8 +68,8 @@ pub mod nft_evo_tickets {
         list_ticket_handler(ctx, price_lamports, expires_at)
     }
 
-    pub fn buy_ticket(ctx: Context<BuyTicketCtx>) -> Result<()> {
-        buy_ticket_handler(ctx)
+    pub fn buy_marketplace_ticket(ctx: Context<BuyMarketplaceTicketCtx>) -> Result<()> {
+        buy_marketplace_ticket_handler(ctx)
     }
 
     pub fn cancel_listing(ctx: Context<CancelListingCtx>) -> Result<()> {
@@ -92,5 +94,14 @@ pub mod nft_evo_tickets {
 
     pub fn set_scanner(ctx: Context<SetScanner>, scanner: Pubkey) -> Result<()> {
         set_scanner_handler(ctx, scanner)
+    }
+
+    pub fn buy_event_ticket(
+        ctx: Context<BuyEventTicketCtx>,
+        ticket_price_lamports: u64,
+        seat: Option<String>,
+        ticket_id: u64,
+    ) -> Result<()> {
+        buy_event_ticket_handler(ctx, ticket_price_lamports, seat, ticket_id)
     }
 }

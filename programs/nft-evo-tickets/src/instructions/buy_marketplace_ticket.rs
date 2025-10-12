@@ -10,7 +10,7 @@ use crate::error::ErrorCode;
 use crate::state::{EventAccount, ListingAccount, TicketAccount};
 
 #[derive(Accounts)]
-pub struct BuyTicketCtx<'info> {
+pub struct BuyMarketplaceTicketCtx<'info> {
     #[account(mut)]
     pub buyer: Signer<'info>,
     
@@ -67,7 +67,7 @@ pub struct BuyTicketCtx<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn handler(ctx: Context<BuyTicketCtx>) -> Result<()> {
+pub fn handler(ctx: Context<BuyMarketplaceTicketCtx>) -> Result<()> {
     let ticket_key = ctx.accounts.ticket_account.key(); // Extract key before mutable borrow
     let ticket = &mut ctx.accounts.ticket_account;
     let listing = &ctx.accounts.listing_account;

@@ -11,6 +11,8 @@ pub struct EventAccount {
     pub name: String,
     pub start_ts: i64,
     pub end_ts: i64,
+    pub tickets_sold: u32,
+    pub ticket_supply: u32,
     pub bump: u8,
 }
 

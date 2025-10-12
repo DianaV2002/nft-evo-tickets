@@ -5,7 +5,7 @@ use crate::error::ErrorCode;
 use crate::state::EventAccount;
 
 #[derive(Accounts)]
-#[instruction(event_id: u64, name: String, start_ts: i64, end_ts: i64)]
+#[instruction(event_id: u64, name: String, start_ts: i64, end_ts: i64, ticket_supply: u32)]
 pub struct CreateEventCtx<'info> {
     #[account(mut)]
     pub organizer: Signer<'info>,
@@ -29,27 +29,31 @@ pub fn handler(
     name: String,
     start_ts: i64,
     end_ts: i64,
+    ticket_supply: u32,
 ) -> Result<()> {
     // Basic validation
     require!(name.len() <= 64, ErrorCode::InvalidInput);
     require!(end_ts > start_ts, ErrorCode::InvalidInput);
-    
+    require!(ticket_supply > 0, ErrorCode::InvalidInput);
+
     // // Validate that the event is in the future
     // let current_time = Clock::get()?.unix_timestamp;
     // require!(start_ts > current_time, ErrorCode::InvalidInput); - only for testing purposes
-    
+
     // Get the event account key before mutable borrow
     let event_account_key = ctx.accounts.event_account.key();
     let organizer_key = ctx.accounts.organizer.key();
-    
+
     let event_account = &mut ctx.accounts.event_account;
-    
+
     // Set the organizer as the event authority (this is key for your authority pattern)
     event_account.authority = organizer_key;
     event_account.event_id = event_id;
     event_account.name = name.clone();
     event_account.start_ts = start_ts;
     event_account.end_ts = end_ts;
+    event_account.tickets_sold = 0;
+    event_account.ticket_supply = ticket_supply;
     event_account.bump = ctx.bumps.event_account;
     
     // Emit event for indexing

@@ -14,9 +14,11 @@ import { useForm } from "react-hook-form"
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { useNavigate } from "react-router-dom"
 import { createEvent } from "@/services/eventService"
+import { mintTicket } from "@/services/ticketService"
 import { recordActivity } from "@/services/levelService"
 import { mapError, UserFriendlyError } from "@/utils/errorMapper"
 import { usdcToLamportsWithPrice, formatUsdc } from "@/utils/usdcUtils"
+import { PublicKey } from "@solana/web3.js"
 
 type EventFormData = {
   name: string
@@ -181,6 +183,7 @@ export default function CreateEvent() {
         name: data.name,
         startDate: data.startDateTime,
         endDate: data.endDateTime,
+        ticketSupply: data.ticketSupply!,
         coverPhoto: data.coverPhoto,
       })
 
@@ -212,7 +215,7 @@ export default function CreateEvent() {
       // Redirect to My Events page after a short delay to show success message
       setTimeout(() => {
         navigate('/my-events')
-      }, 2000)
+      }, 3000)
     } catch (err: any) {
       console.error("Failed to create event:", err)
       const friendlyError = mapError(err)
@@ -653,7 +656,7 @@ export default function CreateEvent() {
                   {txSignature && (
                     <SuccessDisplay
                       title="Event Created Successfully!"
-                      message="Your event has been created and is now live on the blockchain. You'll be redirected to your events page shortly."
+                      message="Your event is now live on the blockchain! Next step: Visit 'My Events' to mint tickets for your attendees. You'll be redirected shortly."
                       txSignature={txSignature}
                       onDismiss={() => setTxSignature(null)}
                     />

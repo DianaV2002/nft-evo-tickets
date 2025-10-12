@@ -13,8 +13,8 @@ pub use mint_ticket::{MintTicketCtx, handler as mint_ticket_handler};
 pub mod list_ticket;
 pub use list_ticket::{ListTicketCtx, handler as list_ticket_handler};
 
-pub mod buy_ticket;
-pub use buy_ticket::{BuyTicketCtx, handler as buy_ticket_handler};
+pub mod buy_marketplace_ticket;
+pub use buy_marketplace_ticket::{BuyMarketplaceTicketCtx, handler as buy_marketplace_ticket_handler};
 
 pub mod cancel_listing;
 pub use cancel_listing::{CancelListingCtx, handler as cancel_listing_handler};
@@ -30,3 +30,6 @@ pub use upgrade_to_collectible::{UpgradeToCollectible, handler as upgrade_to_col
 
 pub mod set_scanner;
 pub use set_scanner::{SetScanner, handler as set_scanner_handler};
+
+pub mod buy_event_ticket;
+pub use buy_event_ticket::{BuyEventTicketCtx, handler as buy_event_ticket_handler};
