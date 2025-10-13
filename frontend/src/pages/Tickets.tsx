@@ -7,6 +7,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { useEffect, useState } from "react"
 import { fetchUserTickets, TicketData, getTicketStageName, getTicketRarity } from "@/services/ticketService"
 import { EventData, fetchEventsByKeys, formatEventDate, formatEventTime, getEventStatus } from "@/services/eventService"
+import { getImageDisplayUrl } from "@/services/imageService"
 import { PublicKey } from "@solana/web3.js"
 import { LAMPORTS_PER_SOL } from "@solana/web3.js"
 
@@ -212,24 +213,40 @@ export default function Tickets() {
               const eventStatus = eventData ? getEventStatus(eventData.startTs, eventData.endTs) : "ended"
 
               return (
-                <Card key={ticket.publicKey} className="glass-card spatial-hover group">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between">
-                      <div className="text-4xl mb-2">{image}</div>
-                      <div className="flex flex-col space-y-1">
-                        {eventStatus === "live" && (
-                          <Badge className="bg-green-500 text-white">
-                            Live
-                          </Badge>
-                        )}
-                        <Badge className={getStatusColor(status)}>
-                          {status}
-                        </Badge>
-                        <Badge className={getRarityColor(rarity)}>
-                          {rarity}
-                        </Badge>
-                      </div>
+                <Card key={ticket.publicKey} className="glass-card spatial-hover group overflow-hidden">
+                  {/* Event Cover Image Thumbnail */}
+                  <div className="aspect-video relative overflow-hidden bg-gradient-to-br from-primary/20 to-accent/20">
+                    {eventData?.coverImageUrl && getImageDisplayUrl(eventData.coverImageUrl) ? (
+                      <img
+                        src={getImageDisplayUrl(eventData.coverImageUrl)!}
+                        alt={eventData.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center ${eventData?.coverImageUrl && getImageDisplayUrl(eventData.coverImageUrl) ? 'hidden' : ''}`}>
+                      <div className="text-6xl opacity-40">{image}</div>
                     </div>
+                    <div className="absolute top-2 right-2 flex flex-col gap-1">
+                      {eventStatus === "live" && (
+                        <Badge className="bg-green-500 text-white">
+                          Live
+                        </Badge>
+                      )}
+                      <Badge className={getStatusColor(status)}>
+                        {status}
+                      </Badge>
+                      <Badge className={getRarityColor(rarity)}>
+                        {rarity}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <CardHeader className="pb-4">
                     <CardTitle className="line-clamp-1 group-hover:text-primary transition-colors">
                       {eventData?.name || "Loading Event..."}
                     </CardTitle>
@@ -322,19 +339,35 @@ export default function Tickets() {
               const image = getTicketImage(ticket.stage)
 
               return (
-                <Card key={ticket.publicKey} className="glass-card opacity-75 hover:opacity-100 transition-opacity">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between">
-                      <div className="text-4xl mb-2">{image}</div>
-                      <div className="flex flex-col space-y-1">
-                        <Badge className={getStatusColor(status)}>
-                          {status}
-                        </Badge>
-                        <Badge className={getRarityColor(rarity)}>
-                          {rarity}
-                        </Badge>
-                      </div>
+                <Card key={ticket.publicKey} className="glass-card opacity-75 hover:opacity-100 transition-opacity overflow-hidden">
+                  {/* Event Cover Image Thumbnail */}
+                  <div className="aspect-video relative overflow-hidden bg-gradient-to-br from-primary/20 to-accent/20">
+                    {eventData?.coverImageUrl && getImageDisplayUrl(eventData.coverImageUrl) ? (
+                      <img
+                        src={getImageDisplayUrl(eventData.coverImageUrl)!}
+                        alt={eventData.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center ${eventData?.coverImageUrl && getImageDisplayUrl(eventData.coverImageUrl) ? 'hidden' : ''}`}>
+                      <div className="text-6xl opacity-40">{image}</div>
                     </div>
+                    <div className="absolute top-2 right-2 flex flex-col gap-1">
+                      <Badge className={getStatusColor(status)}>
+                        {status}
+                      </Badge>
+                      <Badge className={getRarityColor(rarity)}>
+                        {rarity}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <CardHeader className="pb-4">
                     <CardTitle className="line-clamp-1">
                       {eventData?.name || "Loading Event..."}
                     </CardTitle>
