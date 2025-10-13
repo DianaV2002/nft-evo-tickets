@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
 import { 
   Ticket, 
   TrendingUp, 
@@ -29,6 +30,7 @@ import member1 from "@/assets/member-1.jpg";
 import member2 from "@/assets/member-2.jpg";
 import member3 from "@/assets/member-3.jpg";
 import member4 from "@/assets/member-4.jpg";
+import logo from "@/assets/logo.png"; 
 
 export default function WalletConnect() {
   const { connected } = useWallet();
@@ -119,10 +121,13 @@ export default function WalletConnect() {
         
         {/* Hero Section */}
         <div className="text-center mb-16 pt-12">
-          <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 rounded-full bg-primary/10 border border-primary/30">
-            <Ticket className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-primary">Evo Tickets</span>
-          </div>
+    <div className="inline-flex items-center gap-1 mb-3 px-2 py-1">
+  <img 
+    src={logo} 
+    alt="logo" 
+    className="w-36 h-auto"
+  />
+</div>
           <h1 className="text-6xl md:text-7xl font-light mb-6 gradient-text">
             The Future of Events:<br />Tickets that Unlock More
           </h1>
@@ -138,7 +143,7 @@ export default function WalletConnect() {
 
         {/* Featured Event Banner */}
         <Card className="glass-card border-none mb-16 overflow-hidden">
-          <div className="relative h-64">
+          <div className="relative h-[600px]">
             <img 
               src={eventFeatured} 
               alt="Wellness event" 

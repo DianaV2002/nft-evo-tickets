@@ -13,6 +13,7 @@ import {
   Gift
 } from "lucide-react"
 import { useWallet } from "@solana/wallet-adapter-react"
+import logo from "@/assets/logo.png";
 
 import {
   Sidebar,
@@ -63,8 +64,11 @@ export function EvoSidebar() {
         {/* Logo */}
         <div className="mb-8 px-2">
           {!collapsed ? (
-            <h1 className="text-2xl font-light gradient-text">Evo Tickets</h1>
-          ) : (
+            <img
+              src={logo}
+              alt="logo"
+              className="w-36 h-auto"
+            />) : (
             <div className="w-8 h-8 bg-gradient-primary rounded-lg neon-glow"></div>
           )}
         </div>

@@ -17,7 +17,7 @@
     --popover-foreground: 30 25% 20%;
 
     /* Rich forest green primary */
-    --primary: 145 40% 42%;
+    --primary: #325C1B;
     --primary-foreground: 0 0% 100%;
 
     /* Warm sand/beige secondary */
@@ -125,7 +125,7 @@
 
   /* Gradient Text */
   .gradient-text {
-    background: var(--gradient-primary);
+    background: #325C1B;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
