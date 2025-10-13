@@ -13,6 +13,7 @@ pub struct EventAccount {
     pub end_ts: i64,
     pub tickets_sold: u32,
     pub ticket_supply: u32,
+    pub version: u8, // Version field for tracking event format changes
     pub bump: u8,
 }
 

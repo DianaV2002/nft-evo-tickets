@@ -12,6 +12,7 @@ export interface EventData {
   endTs: number;
   ticketsSold: number;
   ticketSupply: number;
+  version: number;
   bump: number;
 }
 
@@ -129,6 +130,7 @@ export async function fetchAllEvents(
         // Try to read tickets_sold (4 bytes) - default to 0 if not present or invalid
         let ticketsSold = 0;
         let ticketSupply = 100; // Default supply for old events
+        let version = 0; // Default to version 0 for legacy events
 
         if (offset + 4 <= dataLength) {
           const rawTicketsSold = data.readUInt32LE(offset);
@@ -153,6 +155,14 @@ export async function fetchAllEvents(
           console.log(`Account ${account.pubkey.toString()} is an old event, using default ticket_supply=100`);
         }
 
+        // Try to read version (1 byte) - default to 0 for legacy events
+        if (offset + 1 <= dataLength) {
+          version = data.readUInt8(offset);
+          offset += 1;
+        } else {
+          console.log(`Account ${account.pubkey.toString()} is a legacy event without version field`);
+        }
+
         // Check if we have enough data for bump (1 byte)
         if (offset + 1 > dataLength) {
           console.warn(`Account ${account.pubkey.toString()} insufficient data for bump at offset ${offset}`);
@@ -170,6 +180,7 @@ export async function fetchAllEvents(
           endTs: Number(endTs),
           ticketsSold,
           ticketSupply,
+          version,
           bump,
         };
         
@@ -191,10 +202,15 @@ export async function fetchAllEvents(
     const now = Math.floor(Date.now() / 1000);
     const activeEvents = events.filter(event => event.endTs > now);
 
-    // Sort by start time (most recent first)
-    activeEvents.sort((a, b) => b.startTs - a.startTs);
+    // Filter out events with no ticket supply (0 or invalid) and only show version 1 events
+    const validEvents = activeEvents.filter(event =>
+      event.ticketSupply > 0 && event.version === 1
+    );
 
-    return activeEvents;
+    // Sort by start time (most recent first)
+    validEvents.sort((a, b) => b.startTs - a.startTs);
+
+    return validEvents;
   } catch (error) {
     console.error("Error fetching events:", error);
     return [];
@@ -257,6 +273,7 @@ export async function fetchEventsByKeys(
         // Try to read tickets_sold (4 bytes) - default to 0 if not present or invalid
         let ticketsSold = 0;
         let ticketSupply = 100; // Default supply for old events
+        let version = 0; // Default to version 0 for legacy events
 
         if (offset + 4 <= data.length) {
           const rawTicketsSold = data.readUInt32LE(offset);
@@ -277,6 +294,12 @@ export async function fetchEventsByKeys(
           offset += 4;
         }
 
+        // Try to read version (1 byte) - default to 0 for legacy events
+        if (offset + 1 <= data.length) {
+          version = data.readUInt8(offset);
+          offset += 1;
+        }
+
         const bump = data.readUInt8(offset);
 
         return {
@@ -289,6 +312,7 @@ export async function fetchEventsByKeys(
           endTs: Number(endTs),
           ticketsSold,
           ticketSupply,
+          version,
           bump,
         };
       } catch (err) {
@@ -365,6 +389,52 @@ export interface CreateEventParams {
   endDate: Date;
   ticketSupply: number;
   coverPhoto?: File | null;
+}
+
+export async function deleteEvent(
+  connection: Connection,
+  wallet: any,
+  eventPublicKey: PublicKey,
+  eventId: number
+): Promise<string> {
+  if (!wallet.publicKey) {
+    throw new Error("Wallet not connected");
+  }
+
+  const { Program, AnchorProvider, BN, web3 } = await import("@coral-xyz/anchor");
+
+  // Create provider
+  const provider = new AnchorProvider(
+    connection,
+    wallet,
+    { commitment: "confirmed" }
+  );
+
+  // Create program instance
+  const program = new Program(idl as any, provider);
+
+  console.log("Deleting event:", {
+    eventId,
+    eventPda: eventPublicKey.toString(),
+  });
+
+  try {
+    // Call delete_event instruction
+    const tx = await program.methods
+      .deleteEvent(new BN(eventId))
+      .accounts({
+        authority: wallet.publicKey,
+        eventAccount: eventPublicKey,
+      })
+      .rpc();
+
+    console.log("Event deleted! Transaction:", tx);
+
+    return tx;
+  } catch (error: any) {
+    console.error("Error deleting event:", error);
+    throw error;
+  }
 }
 
 export async function createEvent(

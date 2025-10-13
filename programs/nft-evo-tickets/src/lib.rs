@@ -22,6 +22,7 @@ use crate::instructions::update_ticket_metadata::__client_accounts_update_ticket
 use crate::instructions::upgrade_to_collectible::__client_accounts_upgrade_to_collectible;
 use crate::instructions::set_scanner::__client_accounts_set_scanner;
 use crate::instructions::buy_event_ticket::__client_accounts_buy_event_ticket_ctx;
+use crate::instructions::delete_event::__client_accounts_delete_event_ctx;
 
 #[program]
 pub mod nft_evo_tickets {
@@ -103,5 +104,12 @@ pub mod nft_evo_tickets {
         ticket_id: u64,
     ) -> Result<()> {
         buy_event_ticket_handler(ctx, ticket_price_lamports, seat, ticket_id)
+    }
+
+    pub fn delete_event(
+        ctx: Context<DeleteEventCtx>,
+        event_id: u64,
+    ) -> Result<()> {
+        delete_event_handler(ctx, event_id)
     }
 }

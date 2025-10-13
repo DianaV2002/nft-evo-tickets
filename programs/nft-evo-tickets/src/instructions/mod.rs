@@ -33,3 +33,6 @@ pub use set_scanner::{SetScanner, handler as set_scanner_handler};
 
 pub mod buy_event_ticket;
 pub use buy_event_ticket::{BuyEventTicketCtx, handler as buy_event_ticket_handler};
+
+pub mod delete_event;
+pub use delete_event::{DeleteEventCtx, handler as delete_event_handler};

@@ -11,19 +11,23 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { useEffect, useState } from "react"
-import { fetchAllEvents, EventData, getEventStatus, formatEventDate, formatEventTime } from "@/services/eventService"
+import { fetchAllEvents, EventData, getEventStatus, formatEventDate, formatEventTime, deleteEvent } from "@/services/eventService"
 import { useEventStatusUpdate } from "@/hooks/useEventStatusUpdate"
+import { PublicKey } from "@solana/web3.js"
+import { useToast } from "@/hooks/use-toast"
 
 export default function MyEvents() {
   const { connection } = useConnection()
   const wallet = useWallet()
+  const { toast } = useToast()
   const [events, setEvents] = useState<EventData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
   const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null)
+
   // Use the status update hook
   const { lastUpdate, statusChanges, hasRecentChanges } = useEventStatusUpdate(events)
 
@@ -81,6 +85,54 @@ export default function MyEvents() {
       }
       return newSet
     })
+  }
+
+  const handleDeleteEvent = async (event: EventData) => {
+    if (!wallet.connected || !wallet.publicKey) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to delete events",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Confirm deletion
+    if (!window.confirm(`Are you sure you want to delete "${event.name}"? This action cannot be undone.`)) {
+      return
+    }
+
+    setDeletingEventId(event.eventId)
+
+    try {
+      const eventPublicKey = new PublicKey(event.publicKey)
+      const eventId = parseInt(event.eventId)
+
+      toast({
+        title: "Deleting event...",
+        description: "Please confirm the transaction in your wallet",
+      })
+
+      const txSignature = await deleteEvent(connection, wallet, eventPublicKey, eventId)
+
+      toast({
+        title: "Event deleted successfully!",
+        description: `Transaction: ${txSignature.slice(0, 8)}...${txSignature.slice(-8)}`,
+      })
+
+      // Reload events after deletion
+      const fetchedEvents = await fetchAllEvents(connection, wallet.publicKey)
+      setEvents(fetchedEvents)
+    } catch (error: any) {
+      console.error("Failed to delete event:", error)
+      toast({
+        title: "Failed to delete event",
+        description: error.message || "An error occurred while deleting the event",
+        variant: "destructive",
+      })
+    } finally {
+      setDeletingEventId(null)
+    }
   }
 
   return (
@@ -308,8 +360,18 @@ export default function MyEvents() {
                     </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button className="flex-1 bg-gradient-primary neon-glow spatial-hover">
-                          Manage Event
+                        <Button
+                          className="flex-1 bg-gradient-primary neon-glow spatial-hover"
+                          disabled={deletingEventId === event.eventId}
+                        >
+                          {deletingEventId === event.eventId ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Deleting...
+                            </>
+                          ) : (
+                            "Manage Event"
+                          )}
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="glass-card">
@@ -321,7 +383,14 @@ export default function MyEvents() {
                           <Users className="h-4 w-4 mr-2" />
                           View Attendees
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteEvent(event)
+                          }}
+                          disabled={deletingEventId === event.eventId}
+                        >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete Event
                         </DropdownMenuItem>

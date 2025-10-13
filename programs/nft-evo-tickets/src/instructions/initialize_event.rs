@@ -38,6 +38,9 @@ pub fn handler(
     event_account.name = name;
     event_account.start_ts = start_ts;
     event_account.end_ts = end_ts;
+    event_account.tickets_sold = 0;
+    event_account.ticket_supply = 0;
+    event_account.version = 0; // Legacy version without ticket_supply
     event_account.bump = ctx.bumps.event_account;
     Ok(())
 }

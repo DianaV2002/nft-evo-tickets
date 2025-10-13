@@ -54,6 +54,7 @@ pub fn handler(
     event_account.end_ts = end_ts;
     event_account.tickets_sold = 0;
     event_account.ticket_supply = ticket_supply;
+    event_account.version = 1; // Current version with ticket_supply field
     event_account.bump = ctx.bumps.event_account;
     
     // Emit event for indexing
