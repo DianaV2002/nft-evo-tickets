@@ -13,6 +13,7 @@ export interface EventData {
   ticketsSold: number;
   ticketSupply: number;
   version: number;
+  coverImageUrl: string;
   bump: number;
 }
 
@@ -163,6 +164,17 @@ export async function fetchAllEvents(
           console.log(`Account ${account.pubkey.toString()} is a legacy event without version field`);
         }
 
+        // Try to read cover_image_url (String with length prefix)
+        let coverImageUrl = "";
+        if (offset + 4 <= dataLength) {
+          const urlLength = data.readUInt32LE(offset);
+          offset += 4;
+          if (urlLength > 0 && urlLength <= 200 && offset + urlLength <= dataLength) {
+            coverImageUrl = data.slice(offset, offset + urlLength).toString("utf-8");
+            offset += urlLength;
+          }
+        }
+
         // Check if we have enough data for bump (1 byte)
         if (offset + 1 > dataLength) {
           console.warn(`Account ${account.pubkey.toString()} insufficient data for bump at offset ${offset}`);
@@ -181,6 +193,7 @@ export async function fetchAllEvents(
           ticketsSold,
           ticketSupply,
           version,
+          coverImageUrl,
           bump,
         };
         
@@ -300,6 +313,17 @@ export async function fetchEventsByKeys(
           offset += 1;
         }
 
+        // Try to read cover_image_url (String with length prefix)
+        let coverImageUrl = "";
+        if (offset + 4 <= data.length) {
+          const urlLength = data.readUInt32LE(offset);
+          offset += 4;
+          if (urlLength > 0 && urlLength <= 200 && offset + urlLength <= data.length) {
+            coverImageUrl = data.slice(offset, offset + urlLength).toString("utf-8");
+            offset += urlLength;
+          }
+        }
+
         const bump = data.readUInt8(offset);
 
         return {
@@ -313,6 +337,7 @@ export async function fetchEventsByKeys(
           ticketsSold,
           ticketSupply,
           version,
+          coverImageUrl,
           bump,
         };
       } catch (err) {
@@ -442,14 +467,17 @@ export async function createEvent(
   wallet: any,
   params: CreateEventParams
 ): Promise<string> {
-  // Handle cover photo upload (placeholder for now)
-  if (params.coverPhoto) {
-    console.log("Cover photo uploaded:", params.coverPhoto.name, "Size:", params.coverPhoto.size);
-    // TODO: Upload to IPFS or other storage service
-    // For now, we'll just log the file info
-  }
   if (!wallet.publicKey) {
     throw new Error("Wallet not connected");
+  }
+
+  // Handle cover photo upload
+  let coverImageUrl = "";
+  if (params.coverPhoto) {
+    console.log("Uploading cover photo:", params.coverPhoto.name, "Size:", params.coverPhoto.size);
+    const { uploadEventImage } = await import("./imageService");
+    coverImageUrl = await uploadEventImage(params.coverPhoto);
+    console.log("Cover image URL:", coverImageUrl || "(placeholder)");
   }
 
   const { Program, AnchorProvider, BN, web3 } = await import("@coral-xyz/anchor");
@@ -492,7 +520,7 @@ export async function createEvent(
   try {
     // Call create_event instruction
     const tx = await program.methods
-      .createEvent(eventId, params.name, startTs, endTs, params.ticketSupply)
+      .createEvent(eventId, params.name, startTs, endTs, params.ticketSupply, coverImageUrl)
       .accounts({
         organizer: wallet.publicKey,
         eventAccount: eventPda,
@@ -522,7 +550,7 @@ export async function createEvent(
       console.log("Retrying with new event ID:", retryEventId.toString());
 
       const tx = await program.methods
-        .createEvent(retryEventId, params.name, startTs, endTs, params.ticketSupply)
+        .createEvent(retryEventId, params.name, startTs, endTs, params.ticketSupply, coverImageUrl)
         .accounts({
           organizer: wallet.publicKey,
           eventAccount: retryEventPda,

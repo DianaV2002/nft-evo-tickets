@@ -49,8 +49,9 @@ pub mod nft_evo_tickets {
         start_ts: i64,
         end_ts: i64,
         ticket_supply: u32,
+        cover_image_url: String,
     ) -> Result<()> {
-        create_event_handler(ctx, event_id, name, start_ts, end_ts, ticket_supply)
+        create_event_handler(ctx, event_id, name, start_ts, end_ts, ticket_supply, cover_image_url)
     }
 
     pub fn mint_ticket(

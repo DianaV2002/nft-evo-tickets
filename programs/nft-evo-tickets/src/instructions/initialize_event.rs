@@ -41,6 +41,7 @@ pub fn handler(
     event_account.tickets_sold = 0;
     event_account.ticket_supply = 0;
     event_account.version = 0; // Legacy version without ticket_supply
+    event_account.cover_image_url = String::new(); // No cover image for legacy events
     event_account.bump = ctx.bumps.event_account;
     Ok(())
 }

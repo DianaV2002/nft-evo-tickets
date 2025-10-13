@@ -187,10 +187,26 @@ pub fn handler(
         buyer.key()
     );
 
-    let ticket_name = if let Some(seat_id) = &seat {
-        format!("{} - Seat {}", event_account.name, seat_id)
+    // Metaplex has a 32 character limit for NFT names
+    // Truncate event name to ensure total length stays under 32 chars
+    let max_event_name_len = if seat.is_some() { 20 } else { 24 };
+    let truncated_name = if event_account.name.len() > max_event_name_len {
+        format!("{}...", &event_account.name[..max_event_name_len])
     } else {
-        format!("{} - Ticket", event_account.name)
+        event_account.name.clone()
+    };
+
+    let ticket_name = if let Some(seat_id) = &seat {
+        // Format: "Event Name... - S123" (max 32 chars)
+        let seat_suffix = format!(" - S{}", seat_id);
+        if truncated_name.len() + seat_suffix.len() > 32 {
+            format!("{}...{}", &truncated_name[..28], &seat_suffix[seat_suffix.len()-4..])
+        } else {
+            format!("{}{}", truncated_name, seat_suffix)
+        }
+    } else {
+        // Format: "Event Name... - Ticket" (max 32 chars)
+        format!("{} - Ticket", truncated_name)
     };
 
     let create_metadata_accounts = CreateMetadataAccountV3 {

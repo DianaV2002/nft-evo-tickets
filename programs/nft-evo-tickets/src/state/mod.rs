@@ -14,6 +14,8 @@ pub struct EventAccount {
     pub tickets_sold: u32,
     pub ticket_supply: u32,
     pub version: u8, // Version field for tracking event format changes
+    #[max_len(200)]
+    pub cover_image_url: String, // IPFS or external URL for event cover photo
     pub bump: u8,
 }
 

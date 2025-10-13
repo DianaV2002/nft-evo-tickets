@@ -893,6 +893,10 @@
         {
           "name": "ticket_supply",
           "type": "u32"
+        },
+        {
+          "name": "cover_image_url",
+          "type": "string"
         }
       ]
     },
@@ -1995,6 +1999,14 @@
           {
             "name": "ticket_supply",
             "type": "u32"
+          },
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "cover_image_url",
+            "type": "string"
           },
           {
             "name": "bump",

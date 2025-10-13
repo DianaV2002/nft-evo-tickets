@@ -12,6 +12,7 @@ import {
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { useEffect, useState } from "react"
 import { fetchAllEvents, EventData, getEventStatus, formatEventDate, formatEventTime, deleteEvent } from "@/services/eventService"
+import { getImageDisplayUrl } from "@/services/imageService"
 import { useEventStatusUpdate } from "@/hooks/useEventStatusUpdate"
 import { PublicKey } from "@solana/web3.js"
 import { useToast } from "@/hooks/use-toast"
@@ -232,7 +233,20 @@ export default function MyEvents() {
               <Card key={event.publicKey} className="glass-card spatial-hover group overflow-hidden">
                 {/* Cover Photo */}
                 <div className="aspect-video relative overflow-hidden">
-                  <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                  {event.coverImageUrl && getImageDisplayUrl(event.coverImageUrl) ? (
+                    <img
+                      src={getImageDisplayUrl(event.coverImageUrl)!}
+                      alt={event.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback to placeholder if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        target.nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
+                  ) : null}
+                  <div className={`w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center ${event.coverImageUrl && getImageDisplayUrl(event.coverImageUrl) ? 'hidden' : ''}`}>
                     <div className="text-6xl opacity-40">🎫</div>
                   </div>
                   <div className="absolute top-2 right-2">

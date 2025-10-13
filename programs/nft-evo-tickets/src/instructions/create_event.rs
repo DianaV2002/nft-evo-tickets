@@ -5,7 +5,7 @@ use crate::error::ErrorCode;
 use crate::state::EventAccount;
 
 #[derive(Accounts)]
-#[instruction(event_id: u64, name: String, start_ts: i64, end_ts: i64, ticket_supply: u32)]
+#[instruction(event_id: u64, name: String, start_ts: i64, end_ts: i64, ticket_supply: u32, cover_image_url: String)]
 pub struct CreateEventCtx<'info> {
     #[account(mut)]
     pub organizer: Signer<'info>,
@@ -30,11 +30,13 @@ pub fn handler(
     start_ts: i64,
     end_ts: i64,
     ticket_supply: u32,
+    cover_image_url: String,
 ) -> Result<()> {
     // Basic validation
     require!(name.len() <= 64, ErrorCode::InvalidInput);
     require!(end_ts > start_ts, ErrorCode::InvalidInput);
     require!(ticket_supply > 0, ErrorCode::InvalidInput);
+    require!(cover_image_url.len() <= 200, ErrorCode::InvalidInput);
 
     // // Validate that the event is in the future
     // let current_time = Clock::get()?.unix_timestamp;
@@ -55,6 +57,7 @@ pub fn handler(
     event_account.tickets_sold = 0;
     event_account.ticket_supply = ticket_supply;
     event_account.version = 1; // Current version with ticket_supply field
+    event_account.cover_image_url = cover_image_url;
     event_account.bump = ctx.bumps.event_account;
     
     // Emit event for indexing
