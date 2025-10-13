@@ -234,7 +234,10 @@ export default function Events() {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center text-muted-foreground">
                       <Calendar className="h-4 w-4 mr-2" />
-                      {date}
+                      <div className="flex flex-col">
+                        <span>{formatEventDate(event.startTs)}</span>
+                        <span className="text-xs">to {formatEventDate(event.endTs)}</span>
+                      </div>
                     </div>
                     <div className="flex items-center text-muted-foreground">
                       <Clock className="h-4 w-4 mr-2" />
@@ -364,18 +367,20 @@ export default function Events() {
               <>
                 {/* Event Overview */}
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-3">
                     <div className="space-y-2">
                       <div className="flex items-center text-sm">
                         <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <span className="font-medium">Date</span>
+                        <span className="font-medium">Event Dates</span>
                       </div>
-                      <p className="text-sm text-muted-foreground ml-6">
-                        {formatEventDate(selectedEvent.startTs)}
-                        <span className="text-xs text-red-500 ml-2">
-                          (Debug: {selectedEvent.startTs})
-                        </span>
-                      </p>
+                      <div className="ml-6 text-sm text-muted-foreground space-y-1">
+                        <div>
+                          <span className="font-medium text-foreground">Start:</span> {formatEventDate(selectedEvent.startTs)}
+                        </div>
+                        <div>
+                          <span className="font-medium text-foreground">End:</span> {formatEventDate(selectedEvent.endTs)}
+                        </div>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center text-sm">
@@ -384,9 +389,6 @@ export default function Events() {
                       </div>
                       <p className="text-sm text-muted-foreground ml-6">
                         {formatEventTime(selectedEvent.startTs, selectedEvent.endTs)}
-                        <span className="text-xs text-red-500 ml-2">
-                          (Debug: {selectedEvent.startTs} - {selectedEvent.endTs})
-                        </span>
                       </p>
                     </div>
                   </div>
