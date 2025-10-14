@@ -1,7 +1,7 @@
 import * as anchor from '@coral-xyz/anchor';
 import { Program, AnchorProvider } from '@coral-xyz/anchor';
 import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js';
-import { NftEvoTickets } from '../target/types/nft_evo_tickets';
+import { NftEvoTickets } from '../../target/types/nft_evo_tickets';
 import * as fs from 'fs';
 
 // Configuration

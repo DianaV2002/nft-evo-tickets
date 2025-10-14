@@ -281,7 +281,7 @@ async function start() {
 
     // Start server
     app.listen(PORT, () => {
-      console.log(`\n🚀 Level System API running on port ${PORT}`);
+      console.log(`\nLevel System API running on port ${PORT}`);
       console.log(`Cluster: ${CLUSTER}`);
       console.log(`Program ID: ${PROGRAM_ID}`);
       console.log(`Security: Helmet, CORS, Rate Limiting enabled`);

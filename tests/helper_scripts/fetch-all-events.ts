@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import idl from "../frontend/src/anchor-idl/nft_evo_tickets.json" with { type: "json" };
+import idl from "../../frontend/src/anchor-idl/nft_evo_tickets.json" with { type: "json" };
 
 async function main() {
   const connection = new anchor.web3.Connection(

@@ -162,7 +162,7 @@ describe("nft-evo-tickets", function() {
     console.log("  - Token Account: https://solscan.io/account/" + tokenAccountPda.toString() + "?cluster=devnet");
 
     // Check if we have enough balance for minting
-    console.log("\n🔧 Checking balance for minting (if needed by RPC provider)...");
+    console.log("\nChecking balance for minting (if needed by RPC provider)...");
     const balance = await provider.connection.getBalance(provider.wallet!.publicKey);
     console.log(`Current balance: ${balance / LAMPORTS_PER_SOL} SOL`);
     

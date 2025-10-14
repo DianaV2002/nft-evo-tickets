@@ -18,7 +18,7 @@
   "include": [
     "tests/**/*",
     "app/**/*"
-  ],
+, "tests/helper_scripts/buy-ticket-only.ts"  ],
   "exclude": [
     "node_modules",
     "dist",
