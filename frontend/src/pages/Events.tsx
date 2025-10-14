@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { useEffect, useState } from "react"
 import { fetchAllEvents, EventData, getEventStatus, formatEventDate, formatEventTime } from "@/services/eventService"
+import { getImageDisplayUrl } from "@/services/imageService"
 import { useEventStatusUpdate } from "@/hooks/useEventStatusUpdate"
 import { buyEventTicket, fetchActiveListings } from "@/services/ticketService"
 import { recordActivity } from "@/services/levelService"
@@ -200,8 +201,21 @@ export default function Events() {
               <Card key={event.publicKey} className="glass-card spatial-hover group overflow-hidden">
                 {/* Cover Photo */}
                 <div className="aspect-video relative overflow-hidden">
-                  <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                    <div className="text-6xl opacity-40">🎫</div>
+                  {event.coverImageUrl && getImageDisplayUrl(event.coverImageUrl) ? (
+                    <img
+                      src={getImageDisplayUrl(event.coverImageUrl)!}
+                      alt={event.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback to placeholder if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        target.nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
+                  ) : null}
+                  <div className={`w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center ${event.coverImageUrl && getImageDisplayUrl(event.coverImageUrl) ? 'hidden' : ''}`}>
+                    <div className="text-6xl opacity-40"></div>
                   </div>
                   <div className="absolute top-2 right-2 flex gap-2">
                     <Badge className={getStatusColor(status)}>
@@ -229,7 +243,10 @@ export default function Events() {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center text-muted-foreground">
                       <Calendar className="h-4 w-4 mr-2" />
-                      {date}
+                      <div className="flex flex-col">
+                        <span>{formatEventDate(event.startTs)}</span>
+                        <span className="text-xs">to {formatEventDate(event.endTs)}</span>
+                      </div>
                     </div>
                     <div className="flex items-center text-muted-foreground">
                       <Clock className="h-4 w-4 mr-2" />
@@ -359,18 +376,20 @@ export default function Events() {
               <>
                 {/* Event Overview */}
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-3">
                     <div className="space-y-2">
                       <div className="flex items-center text-sm">
                         <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <span className="font-medium">Date</span>
+                        <span className="font-medium">Event Dates</span>
                       </div>
-                      <p className="text-sm text-muted-foreground ml-6">
-                        {formatEventDate(selectedEvent.startTs)}
-                        <span className="text-xs text-red-500 ml-2">
-                          (Debug: {selectedEvent.startTs})
-                        </span>
-                      </p>
+                      <div className="ml-6 text-sm text-muted-foreground space-y-1">
+                        <div>
+                          <span className="font-medium text-foreground">Start:</span> {formatEventDate(selectedEvent.startTs)}
+                        </div>
+                        <div>
+                          <span className="font-medium text-foreground">End:</span> {formatEventDate(selectedEvent.endTs)}
+                        </div>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center text-sm">
@@ -379,9 +398,6 @@ export default function Events() {
                       </div>
                       <p className="text-sm text-muted-foreground ml-6">
                         {formatEventTime(selectedEvent.startTs, selectedEvent.endTs)}
-                        <span className="text-xs text-red-500 ml-2">
-                          (Debug: {selectedEvent.startTs} - {selectedEvent.endTs})
-                        </span>
                       </p>
                     </div>
                   </div>

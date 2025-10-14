@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { NftEvoTickets } from "../target/types/nft_evo_tickets";
+import { NftEvoTickets } from "../../target/types/nft_evo_tickets";
 import { PublicKey, Keypair, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import fs from "fs";
@@ -13,7 +13,7 @@ describe("Buy Ticket - Simple Test", function() {
   const program = anchor.workspace.NftEvoTickets as Program<NftEvoTickets>;
 
   it("Buy a listed ticket", async () => {
-    console.log("\n🎫 Starting Buy Ticket Test\n");
+    console.log("\n Starting Buy Ticket Test\n");
 
     // Load seller keypair and set buyer to your wallet
     const sellerSecret = JSON.parse(fs.readFileSync("tests/fixtures/seller.json", "utf-8"));

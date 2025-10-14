@@ -49,8 +49,8 @@ export async function fetchUserTickets(
   ownerPublicKey: PublicKey
 ): Promise<TicketData[]> {
   try {
-    console.log("🎫 Fetching tickets for owner:", ownerPublicKey.toBase58());
-    console.log("🎫 Program ID:", PROGRAM_ID.toBase58());
+    console.log(" Fetching tickets for owner:", ownerPublicKey.toBase58());
+    console.log(" Program ID:", PROGRAM_ID.toBase58());
 
     const filters: any[] = [
       {
@@ -67,12 +67,12 @@ export async function fetchUserTickets(
       },
     ];
 
-    console.log("🎫 Fetching program accounts with filters...");
+    console.log(" Fetching program accounts with filters...");
     const accounts = await connection.getProgramAccounts(PROGRAM_ID, {
       filters,
     });
 
-    console.log(`🎫 Found ${accounts.length} ticket account(s)`);
+    console.log(` Found ${accounts.length} ticket account(s)`);
     const tickets: TicketData[] = [];
 
     for (const account of accounts) {
@@ -154,7 +154,7 @@ export async function fetchUserTickets(
       }
     }
 
-    console.log("🎫 Successfully parsed tickets:", tickets);
+    console.log(" Successfully parsed tickets:", tickets);
     return tickets;
   } catch (error) {
     console.error("❌ Error fetching user tickets:", error);
@@ -531,44 +531,22 @@ export async function buyTicket(
   const program = new Program(idl as any, provider);
 
   try {
-    // Derive associated token accounts
-    const escrowNftAccount = await getAssociatedTokenAddress(
-      nftMintPublicKey,
-      listingPublicKey,
-      true // allowOwnerOffCurve for PDA
-    );
-
-    const buyerNftAccount = await getAssociatedTokenAddress(
-      nftMintPublicKey,
-      wallet.publicKey
-    );
-
     console.log("Buying ticket:", {
       buyer: wallet.publicKey.toString(),
       ticketAccount: ticketPublicKey.toString(),
-      listingAccount: listingPublicKey.toString(),
       eventAccount: eventPublicKey.toString(),
       seller: sellerPublicKey.toString(),
       nftMint: nftMintPublicKey.toString(),
-      escrowNftAccount: escrowNftAccount.toString(),
-      buyerNftAccount: buyerNftAccount.toString(),
     });
 
     const tx = await program.methods
-      .buyTicket()
+      .buyEventTicket()
       .accounts({
         buyer: wallet.publicKey,
         ticketAccount: ticketPublicKey,
-        listingAccount: listingPublicKey,
         eventAccount: eventPublicKey,
         seller: sellerPublicKey,
         nftMint: nftMintPublicKey,
-        escrowNftAccount,
-        buyerNftAccount,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        rent: web3.SYSVAR_RENT_PUBKEY,
       })
       .rpc();
 

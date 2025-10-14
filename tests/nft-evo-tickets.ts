@@ -72,6 +72,8 @@ describe("nft-evo-tickets", function() {
     const eventName = "Test Concert 2024";
     const startTs = new anchor.BN(Math.floor(Date.now() / 1000) + 3600);
     const endTs = new anchor.BN(Math.floor(Date.now() / 1000) + 7200);
+    const ticketSupply = 100;
+    const coverImageUrl = "https://example.com/cover.jpg";
 
     const [eventPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("nft-evo-tickets"), Buffer.from("event"), eventId.toArrayLike(Buffer, "le", 8)],
@@ -79,7 +81,7 @@ describe("nft-evo-tickets", function() {
     );
 
     const tx = await program.methods
-      .createEvent(eventId, eventName, startTs, endTs)
+      .createEvent(eventId, eventName, startTs, endTs, ticketSupply, coverImageUrl)
       .accounts({
         organizer: provider.wallet!.publicKey,
         eventAccount: eventPda,
@@ -102,6 +104,8 @@ describe("nft-evo-tickets", function() {
     const eventName = "Concert for NFT Minting";
     const startTs = new anchor.BN(Math.floor(Date.now() / 1000) + 3600);
     const endTs = new anchor.BN(Math.floor(Date.now() / 1000) + 7200);
+    const ticketSupply = 100;
+    const coverImageUrl = "https://example.com/cover.jpg";
 
     const [eventPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("nft-evo-tickets"), Buffer.from("event"), eventId.toArrayLike(Buffer, "le", 8)],
@@ -109,7 +113,7 @@ describe("nft-evo-tickets", function() {
     );
 
     await program.methods
-      .createEvent(eventId, eventName, startTs, endTs)
+      .createEvent(eventId, eventName, startTs, endTs, ticketSupply, coverImageUrl)
       .accounts({
         organizer: provider.wallet!.publicKey,
         eventAccount: eventPda!,
@@ -258,6 +262,8 @@ describe("nft-evo-tickets", function() {
     const eventName = "Concert for Buying Test";
     const startTs = new anchor.BN(Math.floor(Date.now() / 1000) + 3600);
     const endTs = new anchor.BN(Math.floor(Date.now() / 1000) + 7200);
+    const ticketSupply = 100;
+    const coverImageUrl = "https://example.com/cover.jpg";
     const sellerSecret = JSON.parse(fs.readFileSync("tests/fixtures/seller.json", "utf-8"));
     const buyerSecret = JSON.parse(fs.readFileSync("tests/fixtures/buyer.json", "utf-8"));
     const seller = Keypair.fromSecretKey(Uint8Array.from(sellerSecret));
@@ -271,7 +277,7 @@ describe("nft-evo-tickets", function() {
         program.programId
     );
     await program.methods
-        .createEvent(eventId, eventName, startTs, endTs)
+        .createEvent(eventId, eventName, startTs, endTs, ticketSupply, coverImageUrl)
         .accounts({ organizer: seller.publicKey, eventAccount: eventPda, systemProgram: SystemProgram.programId })
         .signers([seller])
         .rpc();
@@ -381,21 +387,13 @@ describe("nft-evo-tickets", function() {
     const sellerInitialBalance = await provider.connection.getBalance(seller.publicKey);
 
     const tx = await program.methods
-        .buyTicket()
+        .buyMarketplaceTicket()
         .accounts({
             buyer: buyer.publicKey,
             ticketAccount: ticketPda,
-            listingAccount: listingPda,
             eventAccount: eventPda,
             seller: seller.publicKey,
             nftMint: nftMint,
-            escrowNftAccount: escrowNftAccount,
-            buyerNftAccount: buyerNftAccount,
-            // eventAuthority: seller.publicKey,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            systemProgram: SystemProgram.programId,
-            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
         })
         .signers([buyer])
         .rpc();
@@ -427,6 +425,8 @@ describe("nft-evo-tickets", function() {
     const eventName = "Evo Test Fest";
     const startTs = new anchor.BN(Math.floor(Date.now() / 1000) + 3600); // 1 hour from now
     const endTs = new anchor.BN(Math.floor(Date.now() / 1000) + 7200); // 2 hours from now
+    const ticketSupply = 100;
+    const coverImageUrl = "https://example.com/cover.jpg";
     const authority = provider.wallet!.publicKey;
     const scanner = Keypair.generate();
     const ticketOwner = Keypair.generate();
@@ -440,7 +440,7 @@ describe("nft-evo-tickets", function() {
 
     // Create event with a scanner
     await program.methods
-      .createEvent(eventId, eventName, startTs, endTs)
+      .createEvent(eventId, eventName, startTs, endTs, ticketSupply, coverImageUrl)
       .accounts({ organizer: authority, eventAccount: eventPda, systemProgram: SystemProgram.programId })
       .rpc();
     
@@ -501,6 +501,8 @@ describe("nft-evo-tickets", function() {
     const eventName = "Test Concert 2024";
     const startTs = new anchor.BN(Math.floor(Date.now() / 1000) + 1);
     const endTs = new anchor.BN(Math.floor(Date.now() / 1000) + 2);
+    const ticketSupply = 100;
+    const coverImageUrl = "https://example.com/cover.jpg";
     const authority = provider.wallet!.publicKey;
     const scanner = Keypair.generate();
     const ticketOwner = Keypair.generate();
@@ -513,7 +515,7 @@ describe("nft-evo-tickets", function() {
     );
 
     await program.methods
-      .createEvent(eventId, eventName, startTs, endTs)
+      .createEvent(eventId, eventName, startTs, endTs, ticketSupply, coverImageUrl)
       .accounts({ organizer: authority, eventAccount: eventPda, systemProgram: SystemProgram.programId })
       .rpc();
 

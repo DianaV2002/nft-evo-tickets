@@ -2,7 +2,7 @@ import * as anchor from '@coral-xyz/anchor';
 import { Program, AnchorProvider } from '@coral-xyz/anchor';
 import { Connection, PublicKey, Keypair, SystemProgram } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { NftEvoTickets } from '../target/types/nft_evo_tickets';
+import { NftEvoTickets } from '../../target/types/nft_evo_tickets';
 import * as fs from 'fs';
 
 // Configuration
@@ -10,7 +10,7 @@ const PROGRAM_ID = new PublicKey('6mz15gSnFGTWzjHsveE8aFpVTKjdiLkVfQKtvFf1CGdc')
 const CLUSTER = 'localnet';
 
 async function main() {
-  console.log('🎫 Creating Ticket in QR Stage\n');
+  console.log(' Creating Ticket in QR Stage\n');
 
   // Setup connection and provider
   const rpcUrl = CLUSTER === 'localnet' ? 'http://localhost:8899' : `https://api.${CLUSTER}.solana.com`;

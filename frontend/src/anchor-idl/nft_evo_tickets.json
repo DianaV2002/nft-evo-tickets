@@ -893,6 +893,81 @@
         {
           "name": "ticket_supply",
           "type": "u32"
+        },
+        {
+          "name": "cover_image_url",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "delete_event",
+      "discriminator": [
+        103,
+        111,
+        95,
+        106,
+        232,
+        24,
+        190,
+        84
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "event_account",
+          "docs": [
+            "PDA for the event: [PROGRAM_SEED, EVENT_SEED, event_id_le_bytes]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  102,
+                  116,
+                  45,
+                  101,
+                  118,
+                  111,
+                  45,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  118,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "event_id"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "event_id",
+          "type": "u64"
         }
       ]
     },
@@ -1815,6 +1890,19 @@
         238,
         94
       ]
+    },
+    {
+      "name": "EventDeleted",
+      "discriminator": [
+        140,
+        28,
+        249,
+        192,
+        46,
+        170,
+        15,
+        241
+      ]
     }
   ],
   "errors": [
@@ -1913,6 +2001,14 @@
             "type": "u32"
           },
           {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "cover_image_url",
+            "type": "string"
+          },
+          {
             "name": "bump",
             "type": "u8"
           }
@@ -1947,6 +2043,26 @@
           {
             "name": "end_ts",
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EventDeleted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "event_id",
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "event_account",
+            "type": "pubkey"
           }
         ]
       }

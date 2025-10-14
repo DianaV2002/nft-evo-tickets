@@ -1,7 +1,7 @@
 import * as anchor from '@coral-xyz/anchor';
 import { Program, AnchorProvider } from '@coral-xyz/anchor';
 import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js';
-import { NftEvoTickets } from '../target/types/nft_evo_tickets';
+import { NftEvoTickets } from '../../target/types/nft_evo_tickets';
 import * as fs from 'fs';
 
 // Configuration
@@ -129,7 +129,7 @@ async function validateTicketFromMint(
     // Fetch event account to get authority and scanner
     const eventAccount = await program.account.eventAccount.fetch(ticket.event);
 
-    console.log('\n🎫 Event Information:');
+    console.log('\n Event Information:');
     console.log(`  Name: ${eventAccount.name}`);
     console.log(`  Authority: ${eventAccount.authority.toString()}`);
     console.log(`  Scanner: ${eventAccount.scanner.toString()}`);
@@ -234,7 +234,7 @@ function getStageLabel(stage: any): string {
 
 // Main execution
 async function main() {
-  console.log('🎫 NFT Ticket Validation Script\n');
+  console.log(' NFT Ticket Validation Script\n');
 
   // Parse command line arguments
   const args = process.argv.slice(2);

@@ -12,6 +12,8 @@ export interface EventData {
   endTs: number;
   ticketsSold: number;
   ticketSupply: number;
+  version: number;
+  coverImageUrl: string;
   bump: number;
 }
 
@@ -56,22 +58,18 @@ export async function fetchAllEvents(
         const data = account.account.data;
         const dataLength = data.length;
         
-        // Debug: Log account info
         console.log(`Processing account ${account.pubkey.toString()}, data length: ${dataLength}`);
         
-        // Check if we have enough data for the basic structure
         if (dataLength < 8) {
           console.warn(`Account ${account.pubkey.toString()} has insufficient data (${dataLength} bytes)`);
           continue;
         }
         
-        // Log discriminator for debugging
         const discriminator = data.slice(0, 8);
         console.log(`Account ${account.pubkey.toString()} discriminator:`, discriminator.toString('hex'));
         
-        let offset = 8; // Skip discriminator
+        let offset = 8;
 
-        // Check if we have enough data for authority (32 bytes)
         if (offset + 32 > dataLength) {
           console.warn(`Account ${account.pubkey.toString()} insufficient data for authority at offset ${offset}`);
           continue;
@@ -79,7 +77,6 @@ export async function fetchAllEvents(
         const authority = new PublicKey(data.slice(offset, offset + 32));
         offset += 32;
 
-        // Check if we have enough data for scanner (32 bytes)
         if (offset + 32 > dataLength) {
           console.warn(`Account ${account.pubkey.toString()} insufficient data for scanner at offset ${offset}`);
           continue;
@@ -87,7 +84,6 @@ export async function fetchAllEvents(
         const scanner = new PublicKey(data.slice(offset, offset + 32));
         offset += 32;
 
-        // Check if we have enough data for event_id (8 bytes)
         if (offset + 8 > dataLength) {
           console.warn(`Account ${account.pubkey.toString()} insufficient data for event_id at offset ${offset}`);
           continue;
@@ -95,7 +91,6 @@ export async function fetchAllEvents(
         const eventId = data.readBigUInt64LE(offset);
         offset += 8;
 
-        // Check if we have enough data for name length (4 bytes)
         if (offset + 4 > dataLength) {
           console.warn(`Account ${account.pubkey.toString()} insufficient data for name length at offset ${offset}`);
           continue;
@@ -103,7 +98,6 @@ export async function fetchAllEvents(
         const nameLength = data.readUInt32LE(offset);
         offset += 4;
         
-        // Validate name length is reasonable and we have enough data
         if (nameLength > 1000 || offset + nameLength > dataLength) {
           console.warn(`Account ${account.pubkey.toString()} invalid name length ${nameLength} at offset ${offset}, data length ${dataLength}`);
           continue;
@@ -111,7 +105,6 @@ export async function fetchAllEvents(
         const name = data.slice(offset, offset + nameLength).toString("utf-8");
         offset += nameLength;
 
-        // Check if we have enough data for start_ts (8 bytes)
         if (offset + 8 > dataLength) {
           console.warn(`Account ${account.pubkey.toString()} insufficient data for start_ts at offset ${offset}`);
           continue;
@@ -119,7 +112,6 @@ export async function fetchAllEvents(
         const startTs = data.readBigInt64LE(offset);
         offset += 8;
 
-        // Check if we have enough data for end_ts (8 bytes)
         if (offset + 8 > dataLength) {
           console.warn(`Account ${account.pubkey.toString()} insufficient data for end_ts at offset ${offset}`);
           continue;
@@ -127,13 +119,12 @@ export async function fetchAllEvents(
         const endTs = data.readBigInt64LE(offset);
         offset += 8;
 
-        // Try to read tickets_sold (4 bytes) - default to 0 if not present or invalid
         let ticketsSold = 0;
         let ticketSupply = 100; // Default supply for old events
+        let version = 0; // Default to version 0 for legacy events
 
         if (offset + 4 <= dataLength) {
           const rawTicketsSold = data.readUInt32LE(offset);
-          // Only use the value if it seems reasonable (not corrupted data)
           if (rawTicketsSold < 1000000) {
             ticketsSold = rawTicketsSold;
           }
@@ -142,10 +133,8 @@ export async function fetchAllEvents(
           console.log(`Account ${account.pubkey.toString()} is an old event, using default tickets_sold=0`);
         }
 
-        // Try to read ticket_supply (4 bytes) - default to 100 if not present or invalid
         if (offset + 4 <= dataLength) {
           const rawTicketSupply = data.readUInt32LE(offset);
-          // Only use the value if it seems reasonable (not corrupted data or 0)
           if (rawTicketSupply > 0 && rawTicketSupply < 1000000) {
             ticketSupply = rawTicketSupply;
           }
@@ -154,7 +143,42 @@ export async function fetchAllEvents(
           console.log(`Account ${account.pubkey.toString()} is an old event, using default ticket_supply=100`);
         }
 
-        // Check if we have enough data for bump (1 byte)
+        // Try to read version (1 byte) - default to 0 for legacy events
+        if (offset + 1 <= dataLength) {
+          version = data.readUInt8(offset);
+          offset += 1;
+        } else {
+          console.log(`Account ${account.pubkey.toString()} is a legacy event without version field`);
+        }
+
+        // Try to read cover_image_url (String with length prefix)
+        let coverImageUrl = "";
+        if (offset + 4 <= dataLength) {
+          const urlLength = data.readUInt32LE(offset);
+          offset += 4;
+          if (urlLength > 0 && urlLength <= 200 && offset + urlLength <= dataLength) {
+            coverImageUrl = data.slice(offset, offset + urlLength).toString("utf-8");
+            offset += urlLength;
+          }
+        }
+
+        if (offset + 1 <= dataLength) {
+          version = data.readUInt8(offset);
+          offset += 1;
+        } else {
+          console.log(`Account ${account.pubkey.toString()} is a legacy event without version field`);
+        }
+
+        let coverImageUrl = "";
+        if (offset + 4 <= dataLength) {
+          const urlLength = data.readUInt32LE(offset);
+          offset += 4;
+          if (urlLength > 0 && urlLength <= 200 && offset + urlLength <= dataLength) {
+            coverImageUrl = data.slice(offset, offset + urlLength).toString("utf-8");
+            offset += urlLength;
+          }
+        }
+
         if (offset + 1 > dataLength) {
           console.warn(`Account ${account.pubkey.toString()} insufficient data for bump at offset ${offset}`);
           continue;
@@ -171,10 +195,11 @@ export async function fetchAllEvents(
           endTs: Number(endTs),
           ticketsSold,
           ticketSupply,
+          version,
+          coverImageUrl,
           bump,
         };
         
-        // Debug: Log timestamp values
         console.log(`Event ${eventData.name}:`, {
           startTs: eventData.startTs,
           endTs: eventData.endTs,
@@ -188,10 +213,16 @@ export async function fetchAllEvents(
       }
     }
 
-    // Filter out past events (where end time has passed)
     const now = Math.floor(Date.now() / 1000);
     const activeEvents = events.filter(event => event.endTs > now);
 
+    // Filter out events with no ticket supply (0 or invalid) and only show version 1 events
+    const validEvents = activeEvents.filter(event =>
+      event.ticketSupply > 0 && event.version === 1
+    );
+
+    // Sort by start time (most recent first)
+    validEvents.sort((a, b) => b.startTs - a.startTs);
     // Deduplicate events based on name, organizer, and timing
     // Keep the most recent event if there are duplicates
     const uniqueEvents = new Map<string, EventData>();
@@ -218,6 +249,7 @@ export async function fetchAllEvents(
     const deduplicatedEvents = Array.from(uniqueEvents.values());
     deduplicatedEvents.sort((a, b) => b.startTs - a.startTs);
 
+    return validEvents;
     console.log(`Deduplicated ${activeEvents.length} events to ${deduplicatedEvents.length} unique events`);
     
     // Fetch real ticket counts for each event
@@ -328,10 +360,83 @@ export async function getEventTicketStats(
   }
 }
 
-/**
- * Fetch specific events by their public keys (useful for fetching events associated with tickets)
- * This doesn't filter by date, so it can fetch ended events too
- */
+async function fetchRealTicketData(
+  connection: Connection,
+  eventPublicKey: string
+): Promise<{ ticketsSold: number; ticketSupply: number }> {
+  try {
+    console.log(`Fetching real ticket data for event: ${eventPublicKey}`);
+    
+    const ticketFilters = [
+      {
+        memcmp: {
+          offset: 0,
+          bytes: anchor.utils.bytes.bs58.encode(Buffer.from(TICKET_DISCRIMINATOR)),
+        },
+      },
+      {
+        memcmp: {
+          offset: 8,
+          bytes: eventPublicKey,
+        },
+      },
+    ];
+
+    const ticketAccounts = await connection.getProgramAccounts(PROGRAM_ID, {
+      filters: ticketFilters,
+    });
+
+    const ticketsSold = ticketAccounts.length;
+    
+    console.log(`Event ${eventPublicKey}: ${ticketsSold} tickets sold`);
+    
+    return {
+      ticketsSold,
+      ticketSupply: 100
+    };
+  } catch (error) {
+    console.error(`Error fetching real ticket data for event ${eventPublicKey}:`, error);
+    return {
+      ticketsSold: 0,
+      ticketSupply: 100
+    };
+  }
+}
+
+export async function getEventTicketStats(
+  connection: Connection,
+  eventPublicKey: string
+): Promise<{
+  totalTickets: number;
+  ticketsSold: number;
+  ticketsAvailable: number;
+  soldPercentage: number;
+}> {
+  try {
+    const realTicketData = await fetchRealTicketData(connection, eventPublicKey);
+    const ticketsAvailable = Math.max(0, realTicketData.ticketSupply - realTicketData.ticketsSold);
+    const soldPercentage = realTicketData.ticketSupply > 0 
+      ? Math.round((realTicketData.ticketsSold / realTicketData.ticketSupply) * 100)
+      : 0;
+
+    return {
+      totalTickets: realTicketData.ticketSupply,
+      ticketsSold: realTicketData.ticketsSold,
+      ticketsAvailable,
+      soldPercentage
+    };
+  } catch (error) {
+    console.error(`Error getting ticket stats for event ${eventPublicKey}:`, error);
+    return {
+      totalTickets: 100,
+      ticketsSold: 0,
+      ticketsAvailable: 100,
+      soldPercentage: 0
+    };
+  }
+}
+
+
 export async function fetchEventsByKeys(
   connection: Connection,
   eventKeys: string[]
@@ -339,9 +444,8 @@ export async function fetchEventsByKeys(
   const eventsMap = new Map<string, EventData>();
 
   try {
-    console.log(`🔍 Fetching ${eventKeys.length} specific events...`);
+    console.log(`Fetching ${eventKeys.length} specific events...`);
 
-    // Fetch each event account
     const promises = eventKeys.map(async (eventKey) => {
       try {
         const publicKey = new PublicKey(eventKey);
@@ -353,7 +457,7 @@ export async function fetchEventsByKeys(
         }
 
         const data = accountInfo.data;
-        let offset = 8; // Skip discriminator
+        let offset = 8;
 
         const authority = new PublicKey(data.slice(offset, offset + 32));
         offset += 32;
@@ -381,27 +485,41 @@ export async function fetchEventsByKeys(
         const endTs = data.readBigInt64LE(offset);
         offset += 8;
 
-        // Try to read tickets_sold (4 bytes) - default to 0 if not present or invalid
         let ticketsSold = 0;
         let ticketSupply = 100; // Default supply for old events
+        let version = 0; // Default to version 0 for legacy events
 
         if (offset + 4 <= data.length) {
           const rawTicketsSold = data.readUInt32LE(offset);
-          // Only use the value if it seems reasonable (not corrupted data)
           if (rawTicketsSold < 1000000) {
             ticketsSold = rawTicketsSold;
           }
           offset += 4;
         }
 
-        // Try to read ticket_supply (4 bytes) - default to 100 if not present or invalid
         if (offset + 4 <= data.length) {
           const rawTicketSupply = data.readUInt32LE(offset);
-          // Only use the value if it seems reasonable (not corrupted data or 0)
           if (rawTicketSupply > 0 && rawTicketSupply < 1000000) {
             ticketSupply = rawTicketSupply;
           }
           offset += 4;
+        }
+
+        // Try to read version (1 byte) - default to 0 for legacy events
+        if (offset + 1 <= data.length) {
+          version = data.readUInt8(offset);
+          offset += 1;
+        }
+
+        // Try to read cover_image_url (String with length prefix)
+        let coverImageUrl = "";
+        if (offset + 4 <= data.length) {
+          const urlLength = data.readUInt32LE(offset);
+          offset += 4;
+          if (urlLength > 0 && urlLength <= 200 && offset + urlLength <= data.length) {
+            coverImageUrl = data.slice(offset, offset + urlLength).toString("utf-8");
+            offset += urlLength;
+          }
         }
 
         const bump = data.readUInt8(offset);
@@ -416,6 +534,8 @@ export async function fetchEventsByKeys(
           endTs: Number(endTs),
           ticketsSold,
           ticketSupply,
+          version,
+          coverImageUrl,
           bump,
         };
       } catch (err) {
@@ -445,7 +565,7 @@ export async function fetchEventsByKeys(
       }
     }
 
-    console.log(`✅ Fetched ${eventsMap.size} events successfully`);
+    console.log(`Fetched ${eventsMap.size} events successfully`);
   } catch (error) {
     console.error("Error fetching events by keys:", error);
   }
@@ -466,14 +586,12 @@ export function getEventStatus(startTs: number, endTs: number): "upcoming" | "li
 }
 
 export function formatEventDate(timestamp: number): string {
-  // Handle invalid timestamps
-  if (!timestamp || timestamp < 0 || timestamp > 4102444800) { // Year 2100
+  if (!timestamp || timestamp < 0 || timestamp > 4102444800) {
     return "Invalid Date";
   }
   
   const date = new Date(timestamp * 1000);
   
-  // Check if date is valid
   if (isNaN(date.getTime())) {
     return "Invalid Date";
   }
@@ -507,17 +625,12 @@ export interface CreateEventParams {
   coverPhoto?: File | null;
 }
 
-export async function createEvent(
+export async function deleteEvent(
   connection: Connection,
   wallet: any,
-  params: CreateEventParams
+  eventPublicKey: PublicKey,
+  eventId: number
 ): Promise<string> {
-  // Handle cover photo upload (placeholder for now)
-  if (params.coverPhoto) {
-    console.log("Cover photo uploaded:", params.coverPhoto.name, "Size:", params.coverPhoto.size);
-    // TODO: Upload to IPFS or other storage service
-    // For now, we'll just log the file info
-  }
   if (!wallet.publicKey) {
     throw new Error("Wallet not connected");
   }
@@ -534,14 +647,115 @@ export async function createEvent(
   // Create program instance
   const program = new Program(idl as any, provider);
 
+  console.log("Deleting event:", {
+    eventId,
+    eventPda: eventPublicKey.toString(),
+  });
+
+  try {
+    // Call delete_event instruction
+    const tx = await program.methods
+      .deleteEvent(new BN(eventId))
+      .accounts({
+        authority: wallet.publicKey,
+        eventAccount: eventPublicKey,
+      })
+      .rpc();
+
+    console.log("Event deleted! Transaction:", tx);
+
+    return tx;
+  } catch (error: any) {
+    console.error("Error deleting event:", error);
+    throw error;
+  }
+}
+
+export async function createEvent(
+  connection: Connection,
+  wallet: any,
+  params: CreateEventParams
+): Promise<string> {
+  if (!wallet.publicKey) {
+    throw new Error("Wallet not connected");
+  }
+
+  // Handle cover photo upload
+  let coverImageUrl = "";
+  if (params.coverPhoto) {
+    console.log("Uploading cover photo:", params.coverPhoto.name, "Size:", params.coverPhoto.size);
+    const { uploadEventImage } = await import("./imageService");
+    coverImageUrl = await uploadEventImage(params.coverPhoto);
+    console.log("Cover image URL:", coverImageUrl || "(placeholder)");
+  }
+
+  const { Program, AnchorProvider, BN, web3 } = await import("@coral-xyz/anchor");
+
+  // Create provider
+  const provider = new AnchorProvider(
+    connection,
+    wallet,
+    { commitment: "confirmed" }
+  );
+
+  const program = new Program(idl as any, provider);
+
+  console.log("Deleting event:", {
+    eventId,
+    eventPda: eventPublicKey.toString(),
+  });
+
+  try {
+    const tx = await program.methods
+      .deleteEvent(new BN(eventId))
+      .accounts({
+        authority: wallet.publicKey,
+        eventAccount: eventPublicKey,
+      })
+      .rpc();
+
+    console.log("Event deleted! Transaction:", tx);
+
+    return tx;
+  } catch (error: any) {
+    console.error("Error deleting event:", error);
+    throw error;
+  }
+}
+
+export async function createEvent(
+  connection: Connection,
+  wallet: any,
+  params: CreateEventParams
+): Promise<string> {
+  if (!wallet.publicKey) {
+    throw new Error("Wallet not connected");
+  }
+
+  let coverImageUrl = "";
+  if (params.coverPhoto) {
+    console.log("Uploading cover photo:", params.coverPhoto.name, "Size:", params.coverPhoto.size);
+    const { uploadEventImage } = await import("./imageService");
+    coverImageUrl = await uploadEventImage(params.coverPhoto);
+    console.log("Cover image URL:", coverImageUrl || "(placeholder)");
+  }
+
+  const { Program, AnchorProvider, BN, web3 } = await import("@coral-xyz/anchor");
+
+  const provider = new AnchorProvider(
+    connection,
+    wallet,
+    { commitment: "confirmed" }
+  );
+
+  const program = new Program(idl as any, provider);
+
   // Generate unique event ID from timestamp + random component to reduce collisions
   const eventId = new BN(Date.now() + Math.floor(Math.random() * 10000));
 
-  // Convert dates to Unix timestamps
   const startTs = new BN(Math.floor(params.startDate.getTime() / 1000));
   const endTs = new BN(Math.floor(params.endDate.getTime() / 1000));
 
-  // Derive event PDA
   const [eventPda] = web3.PublicKey.findProgramAddressSync(
     [
       Buffer.from("nft-evo-tickets"),
@@ -575,9 +789,22 @@ export async function createEvent(
   }
 
   try {
-    // Call create_event instruction
+    const existingEvents = await fetchAllEvents(connection, wallet.publicKey);
+    const duplicateEvent = existingEvents.find(event => 
+      event.name === params.name && 
+      event.authority === wallet.publicKey.toString()
+    );
+    
+    if (duplicateEvent) {
+      throw new Error(`An event with the name "${params.name}" already exists. Please choose a different name.`);
+    }
+  } catch (checkError) {
+    console.log("Could not check for existing events, proceeding with creation");
+  }
+
+  try {
     const tx = await program.methods
-      .createEvent(eventId, params.name, startTs, endTs, params.ticketSupply)
+      .createEvent(eventId, params.name, startTs, endTs, params.ticketSupply, coverImageUrl)
       .accounts({
         organizer: wallet.publicKey,
         eventAccount: eventPda,
@@ -589,7 +816,6 @@ export async function createEvent(
 
     return tx;
   } catch (error: any) {
-    // Check if the error is due to account already existing
     if (error?.message?.includes("already in use") ||
         error?.message?.includes("already been processed")) {
       
@@ -622,7 +848,7 @@ export async function createEvent(
       console.log("Retrying with new event ID:", retryEventId.toString());
 
       const tx = await program.methods
-        .createEvent(retryEventId, params.name, startTs, endTs, params.ticketSupply)
+        .createEvent(retryEventId, params.name, startTs, endTs, params.ticketSupply, coverImageUrl)
         .accounts({
           organizer: wallet.publicKey,
           eventAccount: retryEventPda,
@@ -634,7 +860,6 @@ export async function createEvent(
       return tx;
     }
 
-    // Re-throw other errors
     throw error;
   }
 }

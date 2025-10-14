@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { NftEvoTickets } from "../target/types/nft_evo_tickets";
+import { NftEvoTickets } from "../../target/types/nft_evo_tickets";
 import BN from "bn.js";
 
 async function main() {

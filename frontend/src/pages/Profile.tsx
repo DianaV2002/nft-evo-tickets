@@ -286,7 +286,7 @@ export default function Profile() {
                   className="bg-muted/30 rounded-xl p-3 spatial-hover cursor-pointer border border-border/50"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="text-2xl">🎫</div>
+                    <div className="text-2xl"></div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{event.name}</p>
                       <p className="text-xs text-muted-foreground">Event ID: {event.eventId}</p>
