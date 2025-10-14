@@ -139,13 +139,13 @@ export default function Tickets() {
         return
       }
 
-      // Generate QR code with scanner-friendly data
-      const qrDataString = generateScannerQRData({
+      // Generate QR code with scanner-friendly data and wallet signature
+      const qrDataString = await generateScannerQRData({
         nftMint: ticket.nftMint,
         publicKey: ticket.publicKey,
         event: ticket.event,
         owner: ticket.owner
-      })
+      }, wallet)
       setQrCodeData(qrDataString)
       
       // Generate QR code image
@@ -167,10 +167,10 @@ export default function Tickets() {
     // Generate initial QR code
     await generateQRCodeForTicket(ticket)
 
-    // Set up refresh every 10 seconds
+    // Set up refresh every 30 seconds (matching QR code expiration)
     const interval = setInterval(async () => {
       await generateQRCodeForTicket(ticket)
-    }, 10000)
+    }, 30000)
 
     setQrRefreshInterval(interval)
   }
@@ -599,9 +599,9 @@ export default function Tickets() {
             </DialogTitle>
             <DialogDescription>
               {selectedTicket && events.get(selectedTicket.event) ? (
-                shouldShowQRCode(selectedTicket.stage, events.get(selectedTicket.event)!.startTs) 
-                  ? "Your ticket QR code contains scanner data for event entry and links to the NFT mint on Solana Explorer. It refreshes every 10 seconds for security."
-                  : `QR codes are only available when your ticket is in the QR stage (after the event starts).`
+                shouldShowQRCode(selectedTicket.stage, events.get(selectedTicket.event)!.startTs)
+                  ? "Your ticket QR code is cryptographically signed by your wallet and expires every 30 seconds for security. Screenshots cannot be reused."
+                  : `QR codes are only available after the event starts.`
               ) : "Loading ticket information..."
               }
             </DialogDescription>
@@ -632,9 +632,9 @@ export default function Tickets() {
                           alt="Ticket QR Code" 
                           className="w-64 h-64 mx-auto"
                         />
-                        <p className="text-sm text-muted-foreground mt-2">QR Code</p>
+                        <p className="text-sm text-muted-foreground mt-2">Secure QR Code</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Auto-refreshes every 10 seconds
+                          Auto-refreshes every 30 seconds
                         </p>
                       </div>
                     ) : (
@@ -651,7 +651,7 @@ export default function Tickets() {
                       <div className="text-6xl mb-2">🔒</div>
                       <p className="text-sm text-muted-foreground">QR Code Not Available</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Available when event starts (QR stage)
+                        Available when event starts
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Current stage: {getTicketStageName(selectedTicket.stage)}
@@ -660,8 +660,8 @@ export default function Tickets() {
                   )}
                 </div>
 
-                {/* QR Code Info - Only show for QR stage */}
-                {selectedTicket.stage === 1 && (
+                {/* QR Code Info - Show when event has started and QR is available */}
+                {selectedTicket && events.get(selectedTicket.event) && shouldShowQRCode(selectedTicket.stage, events.get(selectedTicket.event)!.startTs) && (
                   <div className="w-full space-y-3">
                     {/* Scanner Data */}
                     <div>
@@ -703,13 +703,13 @@ export default function Tickets() {
                     </div>
                     
                     <p className="text-xs text-muted-foreground">
-                      QR code contains ticket data for scanning and Explorer link for viewing
+                      Secure QR code with wallet signature. Prevents screenshot theft.
                     </p>
                   </div>
                 )}
 
-                {/* Refresh Indicator - Only show for QR stage */}
-                {selectedTicket.stage === 1 && (
+                {/* Refresh Indicator - Show when event has started and QR is available */}
+                {selectedTicket && events.get(selectedTicket.event) && shouldShowQRCode(selectedTicket.stage, events.get(selectedTicket.event)!.startTs) && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <RefreshCw className="h-4 w-4 animate-spin" />
                     <span>Refreshing automatically...</span>

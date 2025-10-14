@@ -593,3 +593,61 @@ export function getTicketRarity(stage: TicketStage): string {
       return "Common";
   }
 }
+
+/**
+ * Evolve ticket to QR stage (Prestige -> QR)
+ * Only the event authority can call this
+ */
+export async function evolveTicketToQR(
+  connection: Connection,
+  wallet: any,
+  ticketPublicKey: PublicKey,
+  eventPublicKey: PublicKey
+): Promise<string> {
+  if (!wallet.publicKey) {
+    throw new Error("Wallet not connected");
+  }
+
+  const { Program, AnchorProvider, web3 } = await import("@coral-xyz/anchor");
+
+  const provider = new AnchorProvider(
+    connection,
+    wallet,
+    { commitment: "confirmed" }
+  );
+
+  const program = new Program(idl as any, provider);
+
+  try {
+    // Get event data
+    const eventAccount = await program.account.eventAccount.fetch(eventPublicKey);
+    const authority = eventAccount.authority as PublicKey;
+    const scanner = eventAccount.scanner as PublicKey;
+
+    console.log("Evolving ticket to QR stage:", {
+      signer: wallet.publicKey.toString(),
+      eventAccount: eventPublicKey.toString(),
+      ticketAccount: ticketPublicKey.toString(),
+      authority: authority.toString(),
+      scanner: scanner.toString(),
+    });
+
+    // Call update_ticket with QR stage
+    const tx = await program.methods
+      .updateTicket({ qr: {} })
+      .accounts({
+        signer: wallet.publicKey,
+        eventAccount: eventPublicKey,
+        ticketAccount: ticketPublicKey,
+        authority: authority,
+        scanner: scanner,
+      })
+      .rpc();
+
+    console.log("Ticket evolved to QR stage! Transaction:", tx);
+    return tx;
+  } catch (error: any) {
+    console.error("Error evolving ticket:", error);
+    throw error;
+  }
+}

@@ -57,11 +57,30 @@ impl TicketStage {
     }
 
     pub fn get_name(&self, event_name: &str, seat: Option<&String>) -> String {
+        // Metaplex has a 32-character limit for NFT names
+        // Format: "TIX • {event} • {seat}" but truncate event name if needed
+        let seat_str = seat.map_or("".to_string(), |s| s.clone());
+        let prefix = "TIX • ";
+        let separator = if !seat_str.is_empty() { " • " } else { "" };
+
+        // Calculate available space: 32 - prefix - separator - seat
+        let available_for_event = 32_usize
+            .saturating_sub(prefix.len())
+            .saturating_sub(separator.len())
+            .saturating_sub(seat_str.len());
+
+        // Truncate event name if necessary
+        let truncated_event = if event_name.len() > available_for_event {
+            &event_name[..available_for_event]
+        } else {
+            event_name
+        };
+
         match self {
-            TicketStage::Prestige => format!("TIX • {} • {}", event_name, seat.map_or("".to_string(), |s| s.clone())),
-            TicketStage::Qr => format!("TIX • {} • {}", event_name, seat.map_or("".to_string(), |s| s.clone())),
-            TicketStage::Scanned => format!("TIX • {} • {}", event_name, seat.map_or("".to_string(), |s| s.clone())),
-            TicketStage::Collectible => format!("TIX • {} • {}", event_name, seat.map_or("".to_string(), |s| s.clone())),
+            TicketStage::Prestige => format!("{}{}{}{}", prefix, truncated_event, separator, seat_str),
+            TicketStage::Qr => format!("{}{}{}{}", prefix, truncated_event, separator, seat_str),
+            TicketStage::Scanned => format!("{}{}{}{}", prefix, truncated_event, separator, seat_str),
+            TicketStage::Collectible => format!("{}{}{}{}", prefix, truncated_event, separator, seat_str),
         }
     }
 }
