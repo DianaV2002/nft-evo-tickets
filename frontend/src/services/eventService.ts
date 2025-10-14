@@ -150,6 +150,24 @@ export async function fetchAllEvents(
           console.log(`Account ${account.pubkey.toString()} is an old event, using default ticket_supply=100`);
         }
 
+        // Try to read version (1 byte) - default to 0 if not present
+        let version = 0;
+        if (offset + 1 <= dataLength) {
+          version = data.readUInt8(offset);
+          offset += 1;
+        }
+
+        // Try to read cover_image_url (String with length prefix)
+        let coverImageUrl = "";
+        if (offset + 4 <= dataLength) {
+          const coverImageUrlLength = data.readUInt32LE(offset);
+          offset += 4;
+          if (coverImageUrlLength > 0 && coverImageUrlLength <= 200 && offset + coverImageUrlLength <= dataLength) {
+            coverImageUrl = data.slice(offset, offset + coverImageUrlLength).toString("utf-8");
+            offset += coverImageUrlLength;
+          }
+        }
+
         // Check if we have enough data for bump (1 byte)
         if (offset + 1 > dataLength) {
           console.warn(`Account ${account.pubkey.toString()} insufficient data for bump at offset ${offset}`);
@@ -167,8 +185,8 @@ export async function fetchAllEvents(
           endTs: Number(endTs),
           ticketsSold,
           ticketSupply,
-          version: 1,
-          coverImageUrl: "",
+          version,
+          coverImageUrl,
           bump,
         };
         
@@ -381,6 +399,24 @@ export async function fetchEventsByKeys(
           offset += 4;
         }
 
+        // Try to read version (1 byte) - default to 0 if not present
+        let version = 0;
+        if (offset + 1 <= data.length) {
+          version = data.readUInt8(offset);
+          offset += 1;
+        }
+
+        // Try to read cover_image_url (String with length prefix)
+        let coverImageUrl = "";
+        if (offset + 4 <= data.length) {
+          const coverImageUrlLength = data.readUInt32LE(offset);
+          offset += 4;
+          if (coverImageUrlLength > 0 && coverImageUrlLength <= 200 && offset + coverImageUrlLength <= data.length) {
+            coverImageUrl = data.slice(offset, offset + coverImageUrlLength).toString("utf-8");
+            offset += coverImageUrlLength;
+          }
+        }
+
         // Check if we have enough data for bump (1 byte)
         if (offset + 1 > data.length) {
           console.warn(`Account ${eventKey} insufficient data for bump at offset ${offset}`);
@@ -398,8 +434,8 @@ export async function fetchEventsByKeys(
           endTs: Number(endTs),
           ticketsSold,
           ticketSupply,
-          version: 1,
-          coverImageUrl: "",
+          version,
+          coverImageUrl,
           bump,
         };
 
@@ -588,7 +624,8 @@ export async function createEvent(
         params.name,
         startTs,
         endTs,
-        new BN(params.ticketSupply)
+        new BN(params.ticketSupply),
+        coverImageUrl || ""
       )
       .accounts({
         organizer: wallet.publicKey,
@@ -622,7 +659,8 @@ export async function createEvent(
           params.name,
           startTs,
           endTs,
-          new BN(params.ticketSupply)
+          new BN(params.ticketSupply),
+          coverImageUrl || ""
         )
         .accounts({
           organizer: wallet.publicKey,

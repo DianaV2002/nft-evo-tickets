@@ -47,7 +47,14 @@ export default function Events() {
       setLoading(true)
       setError(null)
       const fetchedEvents = await fetchAllEvents(connection)
-      setEvents(fetchedEvents)
+      // Filter to only show events with version == 1
+      const filteredEvents = fetchedEvents.filter(event => event.version === 1)
+      console.log("Filtered events with cover images:", filteredEvents.map(e => ({
+        name: e.name,
+        coverImageUrl: e.coverImageUrl,
+        displayUrl: getImageDisplayUrl(e.coverImageUrl)
+      })))
+      setEvents(filteredEvents)
     } catch (err) {
       console.error("Failed to load events:", err)
       setError("Failed to load events from the blockchain")

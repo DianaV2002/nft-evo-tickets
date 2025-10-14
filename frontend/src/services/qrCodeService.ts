@@ -1,6 +1,5 @@
 
 import QRCode from 'qrcode'
-import { getPinataClient, uploadImageToPinata } from '../../../tests/helpers/pinata'
 
 export interface QRCodeData {
   nftMint: string
@@ -37,24 +36,28 @@ export async function generateAndUploadQRCode(
   try {
     // Generate QR code image
     const qrCodeBuffer = await generateQRCodeImage(JSON.stringify(qrData))
-    
-    // Get Pinata client
-    const jwt = import.meta.env.PINATA_JWT
-    if (!jwt) {
-      throw new Error('PINATA_JWT not configured')
+
+    // Upload to backend which handles Pinata IPFS upload
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
+
+    const formData = new FormData()
+    // Convert Buffer to Uint8Array for browser compatibility
+    const uint8Array = new Uint8Array(qrCodeBuffer)
+    const blob = new Blob([uint8Array], { type: 'image/png' })
+    formData.append('image', blob, `ticket-${ticketId}-qr.png`)
+
+    const response = await fetch(`${backendUrl}/api/upload-qr`, {
+      method: 'POST',
+      body: formData
+    })
+
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.statusText}`)
     }
-    
-    const pinataClient = await getPinataClient(jwt)
-    
-    // Upload to Pinata IPFS
-    const ipfsUrl = await uploadImageToPinata(
-      pinataClient, 
-      qrCodeBuffer, 
-      `ticket-${ticketId}-qr.png`
-    )
-    
-    console.log('QR code uploaded to IPFS:', ipfsUrl)
-    return ipfsUrl
+
+    const result = await response.json()
+    console.log('QR code uploaded to IPFS:', result.ipfsUrl)
+    return result.ipfsUrl
   } catch (error) {
     console.error('Error generating and uploading QR code:', error)
     throw new Error('Failed to generate and upload QR code')

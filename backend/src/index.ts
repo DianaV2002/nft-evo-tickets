@@ -1,11 +1,13 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import multer from 'multer';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { Program, AnchorProvider } from '@project-serum/anchor';
 import PinataClient from '@pinata/sdk';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
+import { getPinataClient, uploadImageToPinata } from './pinata';
 
 dotenv.config();
 
@@ -30,6 +32,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Configure multer for file uploads
+const upload = multer({ storage: multer.memoryStorage() });
+
 const SOLANA_RPC_ENDPOINT = process.env.SOLANA_RPC_ENDPOINT!;
 const connection = new Connection(SOLANA_RPC_ENDPOINT);
 const provider = new AnchorProvider(connection, {} as any, AnchorProvider.defaultOptions());
@@ -49,6 +54,37 @@ const METADATA_CIDS = {
     collectible: process.env.PINATA_COLLECTIBLE_CID!,
 };
 
+
+/**
+ * POST /api/upload-qr
+ * Uploads a QR code image to Pinata IPFS
+ * Multipart form data with 'image' field
+ */
+app.post('/api/upload-qr', upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No image file provided' });
+        }
+
+        // Get Pinata client using JWT from environment
+        const pinataClient = await getPinataClient(
+            PINATA_JWT,
+            process.env.PINATA_GATEWAY
+        );
+
+        // Upload image to Pinata
+        const ipfsUrl = await uploadImageToPinata(
+            pinataClient,
+            req.file.buffer,
+            req.file.originalname
+        );
+
+        res.json({ ipfsUrl });
+    } catch (error) {
+        console.error('Error uploading QR code:', error);
+        res.status(500).json({ error: 'Failed to upload QR code to IPFS' });
+    }
+});
 
 /**
  * POST /get-ticket-metadata
