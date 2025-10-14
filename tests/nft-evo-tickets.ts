@@ -22,7 +22,6 @@ async function ensureBalance(conn: Connection, pubkey: PublicKey, wantLamports: 
 
   console.log(`Balance for ${pubkey.toBase58()} is ${bal / LAMPORTS_PER_SOL} SOL. Funding with ${amountToFund / LAMPORTS_PER_SOL} SOL...`);
 
-  // Check if we're on localnet by checking the RPC URL
   const rpcUrl = conn.rpcEndpoint;
   const isLocalnet = rpcUrl.includes("localhost") || rpcUrl.includes("127.0.0.1");
 
@@ -52,7 +51,6 @@ async function ensureBalance(conn: Connection, pubkey: PublicKey, wantLamports: 
 }
 
 describe("nft-evo-tickets", function() {
-  // Configure the client to use the local cluster.
   this.timeout(120_000);   // 2 minutes
   anchor.setProvider(anchor.AnchorProvider.env());
 
@@ -92,7 +90,6 @@ describe("nft-evo-tickets", function() {
     console.log("Event created: https://solscan.io/tx/" + tx + "?cluster=devnet");
     console.log("Event Account: https://solscan.io/account/" + eventPda.toString() + "?cluster=devnet");
 
-    // Verify the event was created
     const eventAccount = await program.account.eventAccount.fetch(eventPda);
     console.log("Event Details:");
     console.log("  - Event ID:", eventAccount.eventId.toString());
@@ -101,7 +98,6 @@ describe("nft-evo-tickets", function() {
   });
 
   it("Mint ticket", async () => {
-    // First create an event
     const eventId = new anchor.BN(Date.now() + Math.random() * 1000 + 1000);
     const eventName = "Concert for NFT Minting";
     const startTs = new anchor.BN(Math.floor(Date.now() / 1000) + 3600);
@@ -112,7 +108,6 @@ describe("nft-evo-tickets", function() {
       program.programId
     );
 
-    // Create event
     await program.methods
       .createEvent(eventId, eventName, startTs, endTs)
       .accounts({
@@ -124,7 +119,6 @@ describe("nft-evo-tickets", function() {
 
     console.log("Event created for minting test");
 
-    // Now mint a ticket
     const ticketOwner = provider.wallet!.publicKey;
     
     const [ticketPda] = PublicKey.findProgramAddressSync(
@@ -132,7 +126,6 @@ describe("nft-evo-tickets", function() {
       program.programId
     );
 
-    // Derive the NFT mint PDA
     const [nftMint] = PublicKey.findProgramAddressSync(
       [Buffer.from("nft-evo-tickets"), Buffer.from("nft-mint"), eventPda.toBuffer(), ticketOwner.toBuffer()],
       program.programId
@@ -161,8 +154,7 @@ describe("nft-evo-tickets", function() {
     console.log("  - Master Edition: https://solscan.io/account/" + masterEditionPda.toString() + "?cluster=devnet");
     console.log("  - Token Account: https://solscan.io/account/" + tokenAccountPda.toString() + "?cluster=devnet");
 
-    // Check if we have enough balance for minting
-    console.log("\n🔧 Checking balance for minting (if needed by RPC provider)...");
+    console.log("\nChecking balance for minting (if needed by RPC provider)...");
     const balance = await provider.connection.getBalance(provider.wallet!.publicKey);
     console.log(`Current balance: ${balance / LAMPORTS_PER_SOL} SOL`);
     
@@ -171,7 +163,6 @@ describe("nft-evo-tickets", function() {
       throw new Error("Insufficient balance for minting");
     }
 
-    // --- Build metadata JSON (respect limits) ---
     const name = "TIX • Concert for NFT Minting • A1".slice(0, 32);
     const symbol = "TIX".slice(0, 10);
     const description = "Entry ticket";
@@ -181,7 +172,6 @@ describe("nft-evo-tickets", function() {
       { trait_type: "Stage", value: "QR" },
     ];
 
-    // Upload image and metadata to Pinata (IPFS) or use mock URLs for testing
     console.log("PINATA_JWT:", process.env.PINATA_JWT ? "[SET]" : "[NOT SET]");
 
     let metadataUrl: string;
@@ -207,7 +197,6 @@ describe("nft-evo-tickets", function() {
       },
     };
 
-      // Upload both image and metadata to Pinata as PUBLIC (permanently pinned)
       const { imageUrl, metadataUrl: pinataMetadataUrl } = await uploadCompleteNFTToPinata(pinataClient, png, metadata, 'ticket.png');
       metadataUrl = pinataMetadataUrl;
 
@@ -215,25 +204,21 @@ describe("nft-evo-tickets", function() {
       console.log("  Image:", imageUrl);
       console.log("  Metadata:", metadataUrl);
     } else {
-      // Use mock URLs for testing when Pinata is not available
       metadataUrl = "https://example.com/metadata.json";
       console.log("Using mock metadata URL for testing:", metadataUrl);
     }
 
-    // Generate QR code from NFT MINT ADDRESS (not metadata URL)
     const qrCodeDataUrl = await QRCode.toDataURL(nftMint.toString());
     console.log("\nQR Code (as data URL) - Contains NFT Mint Address:");
     console.log(qrCodeDataUrl);
 
-    // Save QR code as PNG file
     const qrCodePath = path.join(__dirname, "fixtures", "qr-code.png");
     await QRCode.toFile(qrCodePath, nftMint.toString());
     console.log("QR Code saved to:", qrCodePath);
     console.log("QR Code contains NFT Mint:", nftMint.toString());
 
-    // --- Call your instruction with permanent metadata URI ---
     const tx = await program.methods
-      .mintTicket("A1", metadataUrl) // pass permanent Pinata metadata URL
+      .mintTicket("A1", metadataUrl)
       .accounts({
         authority: provider.wallet!.publicKey,
         eventAccount: eventPda,
@@ -257,7 +242,6 @@ describe("nft-evo-tickets", function() {
       console.log("Ticket Owner: https://solscan.io/account/" + ticketOwner.toString() + "?cluster=devnet");
       console.log("Ticket Account: https://solscan.io/account/" + ticketPda.toString() + "?cluster=devnet");
 
-      // Verify the ticket was created
       const ticketAccount = await program.account.ticketAccount.fetch(ticketPda);
       console.log("Ticket Details:");
       console.log("  - Event:", ticketAccount.event.toString());
@@ -270,7 +254,6 @@ describe("nft-evo-tickets", function() {
   });
 
   it("Buy ticket", async () => {
-    // 1. Create event, mint and list a ticket
     const eventId = new anchor.BN(Date.now() + Math.random() * 1000 + 3000);
     const eventName = "Concert for Buying Test";
     const startTs = new anchor.BN(Math.floor(Date.now() / 1000) + 3600);
@@ -280,11 +263,9 @@ describe("nft-evo-tickets", function() {
     const seller = Keypair.fromSecretKey(Uint8Array.from(sellerSecret));
     const buyer = Keypair.fromSecretKey(Uint8Array.from(buyerSecret));
 
-    // Fund seller and buyer accounts
     await ensureBalance(provider.connection, seller.publicKey, 2 * LAMPORTS_PER_SOL);
     await ensureBalance(provider.connection, buyer.publicKey, 2 * LAMPORTS_PER_SOL);
 
-    // Create event
     const [eventPda] = PublicKey.findProgramAddressSync(
         [Buffer.from("nft-evo-tickets"), Buffer.from("event"), eventId.toArrayLike(Buffer, "le", 8)],
         program.programId
@@ -295,7 +276,6 @@ describe("nft-evo-tickets", function() {
         .signers([seller])
         .rpc();
 
-    // Mint ticket
     const [ticketPda] = PublicKey.findProgramAddressSync(
         [Buffer.from("nft-evo-tickets"), Buffer.from("ticket"), eventPda.toBuffer(), seller.publicKey.toBuffer()],
         program.programId
@@ -340,7 +320,6 @@ describe("nft-evo-tickets", function() {
         .signers([seller])
         .rpc({ skipPreflight: true });
 
-    // Update ticket to QR stage before listing
     const scanner = Keypair.generate();
     await program.methods
         .setScanner(scanner.publicKey)
@@ -360,7 +339,6 @@ describe("nft-evo-tickets", function() {
         .signers([seller])
         .rpc();
 
-    // List ticket
     const priceLamports = new anchor.BN(1 * LAMPORTS_PER_SOL);
     const [listingPda] = PublicKey.findProgramAddressSync(
         [Buffer.from("nft-evo-tickets"), Buffer.from("listing"), ticketPda.toBuffer()],
@@ -394,7 +372,7 @@ describe("nft-evo-tickets", function() {
 
     console.log("Ticket listed for buying test.");
 
-    // 2. Buyer buys the ticket
+    // Buyer buys the ticket
     const [buyerNftAccount] = PublicKey.findProgramAddressSync(
         [buyer.publicKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), nftMint.toBuffer()],
         ASSOCIATED_TOKEN_PROGRAM_ID
@@ -425,7 +403,7 @@ describe("nft-evo-tickets", function() {
     console.log("\nTicket bought successfully!");
     console.log("Transaction signature:", tx);
 
-    // 3. Verify state
+    // Verify state
     const ticketAccount = await program.account.ticketAccount.fetch(ticketPda);
     console.log("\n  - New ticket owner:", ticketAccount.owner.toString());
     console.log("  - Buyer public key:", buyer.publicKey.toString());
@@ -445,7 +423,6 @@ describe("nft-evo-tickets", function() {
   });
 
   it("Updates ticket stage correctly (Authority to QR, Scanner to Scanned)", async () => {
-    // 1. Setup: Create an event and mint a ticket
     const eventId = new anchor.BN(Date.now() + Math.random() * 1000 + 4000);
     const eventName = "Evo Test Fest";
     const startTs = new anchor.BN(Math.floor(Date.now() / 1000) + 3600); // 1 hour from now
@@ -475,8 +452,6 @@ describe("nft-evo-tickets", function() {
         })
         .rpc();
 
-    // Mint ticket
-    // Mint the ticket
     const [ticketPda, nftMint, metadataPda, masterEditionPda, tokenAccountPda] = await mintTestTicket(program, eventPda, authority, ticketOwner.publicKey);
 
     // 2. Test: Authority updates stage to QR
@@ -537,7 +512,6 @@ describe("nft-evo-tickets", function() {
       program.programId
     );
 
-    // Create event and set scanner
     await program.methods
       .createEvent(eventId, eventName, startTs, endTs)
       .accounts({ organizer: authority, eventAccount: eventPda, systemProgram: SystemProgram.programId })
@@ -548,7 +522,6 @@ describe("nft-evo-tickets", function() {
         .accounts({ authority: authority, eventAccount: eventPda })
         .rpc();
 
-    // Mint and scan ticket
     const [ticketPda] = await mintTestTicket(program, eventPda, authority, ticketOwner.publicKey);
     await program.methods
         .updateTicket({ qr: {} })
@@ -560,7 +533,6 @@ describe("nft-evo-tickets", function() {
         .signers([scanner])
         .rpc();
 
-    // Wait for event to end
     console.log("Waiting for event to end...");
     await new Promise(resolve => setTimeout(resolve, 3000));
 

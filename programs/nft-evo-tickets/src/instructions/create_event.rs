@@ -40,13 +40,12 @@ pub fn handler(
     // let current_time = Clock::get()?.unix_timestamp;
     // require!(start_ts > current_time, ErrorCode::InvalidInput); - only for testing purposes
 
-    // Get the event account key before mutable borrow
     let event_account_key = ctx.accounts.event_account.key();
     let organizer_key = ctx.accounts.organizer.key();
 
     let event_account = &mut ctx.accounts.event_account;
 
-    // Set the organizer as the event authority (this is key for your authority pattern)
+    // Set the organizer as the event authority
     event_account.authority = organizer_key;
     event_account.event_id = event_id;
     event_account.name = name.clone();

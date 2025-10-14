@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::program::invoke_signed;
+use anchor_lang::solana_program::sysvar::clock::Clock;
 use anchor_spl::{
     associated_token::AssociatedToken,
     token::{self, Mint, Token, TokenAccount, MintTo},
@@ -139,12 +140,25 @@ pub fn handler(
 
     msg!("Payment transferred: {} lamports to organizer", ticket_price_lamports);
 
+    // Check if event has started to determine initial ticket stage
+    let current_time = Clock::get()?.unix_timestamp;
+    let event_has_started = current_time >= event_account.start_ts;
+    
     // Initialize ticket account
     ticket_account.event = event_account.key();
     ticket_account.owner = buyer.key();
     ticket_account.nft_mint = ctx.accounts.nft_mint.key();
     ticket_account.seat = seat.clone();
-    ticket_account.stage = TicketStage::Prestige;
+    
+    // Set ticket stage based on event timing
+    if event_has_started {
+        ticket_account.stage = TicketStage::Qr;
+        msg!("Event has started, ticket created in QR stage");
+    } else {
+        ticket_account.stage = TicketStage::Prestige;
+        msg!("Event has not started, ticket created in Prestige stage");
+    }
+    
     ticket_account.is_listed = false;
     ticket_account.was_scanned = false;
     ticket_account.listing_price = None;
