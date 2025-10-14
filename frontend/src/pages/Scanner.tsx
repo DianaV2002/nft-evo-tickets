@@ -44,7 +44,9 @@ export default function Scanner() {
       const { fetchAllEvents } = await import('@/services/eventService')
       // Load all events, not just ones where current wallet is organizer
       const allEvents = await fetchAllEvents(connection)
-      setEvents(allEvents)
+      // Filter to only show events with version == 1
+      const filteredEvents = allEvents.filter(event => event.version === 1)
+      setEvents(filteredEvents)
     } catch (error) {
       console.error('Error loading events:', error)
       toast.error('Failed to load events')

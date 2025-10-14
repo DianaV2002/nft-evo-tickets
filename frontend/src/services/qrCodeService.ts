@@ -86,26 +86,57 @@ export function generateNFTExplorerQRData(nftMint: string): string {
   return `https://explorer.solana.com/address/${nftMint}?cluster=devnet`
 }
 
-export function generateScannerQRData(ticket: {
-  nftMint: string
-  publicKey: string
-  event: string
-  owner: string
-}): string {
-  const timestamp = Math.floor(Date.now() / 10000) * 10000 // Round to nearest 10 seconds
-  
+export async function generateScannerQRData(
+  ticket: {
+    nftMint: string
+    publicKey: string
+    event: string
+    owner: string
+  },
+  wallet: any
+): Promise<string> {
+  const timestamp = Date.now()
+  const expiresAt = timestamp + 30000 // Expires in 30 seconds
+
+  // Create message to sign
+  const message = `NFT-TICKET-VALIDATION
+NFT Mint: ${ticket.nftMint}
+Event: ${ticket.event}
+Timestamp: ${timestamp}
+Expires: ${expiresAt}
+Owner: ${ticket.owner}`
+
+  let signature = ''
+
+  // Sign the message with the wallet
+  if (wallet && wallet.signMessage) {
+    try {
+      const encodedMessage = new TextEncoder().encode(message)
+      const signatureBytes = await wallet.signMessage(encodedMessage)
+      // Convert signature to base58
+      signature = Buffer.from(signatureBytes).toString('base64')
+    } catch (error) {
+      console.error('Failed to sign QR code message:', error)
+      throw new Error('Wallet signature required for secure QR code')
+    }
+  } else {
+    throw new Error('Wallet does not support message signing')
+  }
+
   const qrData = {
     nftMint: ticket.nftMint,
     ticketPublicKey: ticket.publicKey,
     event: ticket.event,
     owner: ticket.owner,
     timestamp,
-    
+    expiresAt,
+    signature,
+    message,
     explorerUrl: `https://explorer.solana.com/address/${ticket.nftMint}?cluster=devnet`,
-    type: 'nft-ticket',
-    version: '1.0'
+    type: 'nft-ticket-secure',
+    version: '2.0'
   }
-  
+
   return JSON.stringify(qrData)
 }
 
@@ -125,6 +156,123 @@ export async function generateQRCodeDataURL(data: string): Promise<string> {
   } catch (error) {
     console.error('Error generating QR code data URL:', error)
     throw new Error('Failed to generate QR code')
+  }
+}
+
+export interface SecureQRData {
+  nftMint: string
+  ticketPublicKey: string
+  event: string
+  owner: string
+  timestamp: number
+  expiresAt: number
+  signature: string
+  message: string
+  explorerUrl: string
+  type: string
+  version: string
+}
+
+export interface QRValidationResult {
+  valid: boolean
+  error?: string
+  data?: SecureQRData
+}
+
+/**
+ * Validates a secure QR code
+ * Checks: expiration, signature, and format
+ */
+export async function validateSecureQRCode(
+  qrCodeString: string,
+  connection: any
+): Promise<QRValidationResult> {
+  try {
+    const qrData: SecureQRData = JSON.parse(qrCodeString)
+
+    // Check if it's a secure QR code (v2.0)
+    if (qrData.type !== 'nft-ticket-secure' || qrData.version !== '2.0') {
+      return {
+        valid: false,
+        error: 'This is not a secure QR code. Please use the latest app version.'
+      }
+    }
+
+    // Check expiration
+    const now = Date.now()
+    if (now > qrData.expiresAt) {
+      const secondsExpired = Math.floor((now - qrData.expiresAt) / 1000)
+      return {
+        valid: false,
+        error: `QR code expired ${secondsExpired} seconds ago. Please refresh.`
+      }
+    }
+
+    // Verify signature
+    try {
+      const { PublicKey } = await import('@solana/web3.js')
+      const nacl = await import('tweetnacl')
+
+      const ownerPubkey = new PublicKey(qrData.owner)
+      const messageBytes = new TextEncoder().encode(qrData.message)
+      const signatureBytes = Buffer.from(qrData.signature, 'base64')
+
+      const isValid = nacl.default.sign.detached.verify(
+        messageBytes,
+        signatureBytes,
+        ownerPubkey.toBytes()
+      )
+
+      if (!isValid) {
+        return {
+          valid: false,
+          error: 'Invalid signature. QR code may be tampered with.'
+        }
+      }
+    } catch (error) {
+      console.error('Signature verification error:', error)
+      return {
+        valid: false,
+        error: 'Failed to verify signature'
+      }
+    }
+
+    // Verify owner actually owns the NFT (on-chain check)
+    try {
+      const { PublicKey } = await import('@solana/web3.js')
+      const { getAssociatedTokenAddress } = await import('@solana/spl-token')
+
+      const nftMint = new PublicKey(qrData.nftMint)
+      const owner = new PublicKey(qrData.owner)
+
+      const tokenAccount = await getAssociatedTokenAddress(nftMint, owner)
+      const accountInfo = await connection.getTokenAccountBalance(tokenAccount)
+
+      if (!accountInfo || accountInfo.value.uiAmount !== 1) {
+        return {
+          valid: false,
+          error: 'Owner does not possess this NFT ticket'
+        }
+      }
+    } catch (error) {
+      console.error('NFT ownership verification error:', error)
+      return {
+        valid: false,
+        error: 'Failed to verify NFT ownership'
+      }
+    }
+
+    // All checks passed
+    return {
+      valid: true,
+      data: qrData
+    }
+  } catch (error) {
+    console.error('QR validation error:', error)
+    return {
+      valid: false,
+      error: 'Invalid QR code format'
+    }
   }
 }
 

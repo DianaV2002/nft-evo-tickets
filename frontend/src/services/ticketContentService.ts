@@ -29,14 +29,14 @@ export function getTicketContent(
     case 0: // Prestige
       return {
         title: 'Prestige Ticket',
-        description: isEventStarted 
+        description: isEventStarted
           ? 'Your ticket is ready to evolve to QR stage!'
           : 'Your ticket will evolve when the event starts.',
         icon: '👑',
         color: 'text-yellow-600',
-        availableActions: ['View Details'],
+        availableActions: isEventStarted ? ['View QR Code', 'View Details'] : ['View Details'],
         content: {
-          qrCode: false,
+          qrCode: isEventStarted, // Show QR code if event has started
           eventProgram: false,
           memories: false,
           collectible: false
@@ -195,5 +195,7 @@ export function canEvolve(
 }
 
 export function shouldShowQRCode(ticketStage: number, eventStartTs: number, currentTime: number = Date.now() / 1000): boolean {
-  return ticketStage === 1 && currentTime >= eventStartTs
+  // Show QR code when event has started, regardless of ticket stage
+  // This allows users to see their QR code even if ticket hasn't evolved yet
+  return currentTime >= eventStartTs
 }

@@ -49,6 +49,7 @@ pub fn handler(
 
     // Set the organizer as the event authority
     event_account.authority = organizer_key;
+    event_account.scanner = organizer_key; // Default scanner to organizer
     event_account.event_id = event_id;
     event_account.name = name.clone();
     event_account.start_ts = start_ts;
