@@ -221,24 +221,13 @@ export default function MyEvents() {
                     <div className="flex justify-between items-center text-sm mt-1">
                       <span className="text-muted-foreground">Places Left</span>
                       <span className="text-xs font-medium text-primary">
-                        {(() => {
-                          const totalCapacity = 100;
-                          // Use event ID as seed for consistent numbers
-                          const seed = parseInt(event.eventId.slice(-2), 16) || 0;
-                          const ticketsSold = (seed % 30) + 10; // 10-40 tickets sold
-                          return totalCapacity - ticketsSold;
-                        })()} available
+                        {event.ticketSupply - event.ticketsSold} available
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-sm mt-1">
                       <span className="text-muted-foreground">Tickets Sold</span>
                       <span className="text-xs">
-                        {(() => {
-                          // Use event ID as seed for consistent numbers
-                          const seed = parseInt(event.eventId.slice(-2), 16) || 0;
-                          const ticketsSold = (seed % 30) + 10; // 10-40 tickets sold
-                          return ticketsSold;
-                        })()} sold
+                        {event.ticketsSold} sold
                       </span>
                     </div>
                     
@@ -266,11 +255,11 @@ export default function MyEvents() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Capacity:</span>
-                          <span className="font-mono">100 total</span>
+                          <span className="font-mono">{event.ticketSupply} total</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Sold:</span>
-                          <span className="font-mono">{Math.floor(Math.random() * 20)} tickets</span>
+                          <span className="font-mono">{event.ticketsSold} tickets</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Account:</span>
@@ -380,35 +369,47 @@ export default function MyEvents() {
                   </div>
                   
                   {/* Event Stats */}
-                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-                    {(() => {
-                      const totalCapacity = 100;
-                      // Use event ID as seed for consistent numbers
-                      const seed = parseInt(selectedEvent.eventId.slice(-2), 16) || 0;
-                      const ticketsSold = (seed % 30) + 10; // 10-40 tickets sold
-                      const placesLeft = totalCapacity - ticketsSold;
-                      
-                      return (
-                        <>
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-primary">
-                              {placesLeft}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Places Left</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-secondary">
-                              {ticketsSold}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Tickets Sold</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-accent">{totalCapacity}</p>
-                            <p className="text-xs text-muted-foreground">Total Capacity</p>
-                          </div>
-                        </>
-                      );
-                    })()}
+                  <div className="space-y-4 pt-4 border-t">
+                    {/* Progress Bar */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Ticket Sales Progress</span>
+                        <span className="font-medium">
+                          {selectedEvent.ticketsSold} / {selectedEvent.ticketSupply}
+                        </span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-primary to-accent h-2 rounded-full transition-all duration-300"
+                          style={{ 
+                            width: `${Math.min(100, (selectedEvent.ticketsSold / selectedEvent.ticketSupply) * 100)}%` 
+                          }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center">
+                        {Math.round((selectedEvent.ticketsSold / selectedEvent.ticketSupply) * 100)}% sold
+                      </p>
+                    </div>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-primary">
+                          {selectedEvent.ticketSupply - selectedEvent.ticketsSold}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Places Left</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-secondary">
+                          {selectedEvent.ticketsSold}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Tickets Sold</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-accent">{selectedEvent.ticketSupply}</p>
+                        <p className="text-xs text-muted-foreground">Total Capacity</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

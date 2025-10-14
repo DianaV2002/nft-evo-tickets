@@ -7,7 +7,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { useEffect, useState } from "react"
 import { fetchAllEvents, EventData, getEventStatus, formatEventDate, formatEventTime } from "@/services/eventService"
 import { useEventStatusUpdate } from "@/hooks/useEventStatusUpdate"
-import { buyEventTicket, fetchActiveListings, buyMarketplaceTicket } from "@/services/ticketService"
+import { buyEventTicket, fetchActiveListings } from "@/services/ticketService"
 import { recordActivity } from "@/services/levelService"
 import { PublicKey } from "@solana/web3.js"
 import { LAMPORTS_PER_SOL } from "@solana/web3.js"
@@ -76,6 +76,15 @@ export default function Events() {
       toast.dismiss()
       toast.success("Ticket purchased successfully!")
       toast.success(`Transaction: ${tx.slice(0, 8)}...${tx.slice(-8)}`)
+      
+      // Check if event has started to inform user about ticket stage
+      const now = Math.floor(Date.now() / 1000)
+      const eventHasStarted = now >= selectedEvent.startTs
+      if (eventHasStarted) {
+        toast.info("Your ticket is ready for scanning! QR code has been generated.")
+      } else {
+        toast.info("Your ticket is in Prestige stage. QR code will be generated when the event starts.")
+      }
 
       // Record activity for points
       try {
@@ -378,22 +387,46 @@ export default function Events() {
                   </div>
                   
                   {/* Event Stats */}
-                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-primary">
-                        {selectedEvent.ticketSupply - selectedEvent.ticketsSold}
+                  <div className="space-y-4 pt-4 border-t">
+                    {/* Progress Bar */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Ticket Sales Progress</span>
+                        <span className="font-medium">
+                          {selectedEvent.ticketsSold} / {selectedEvent.ticketSupply}
+                        </span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-primary to-accent h-2 rounded-full transition-all duration-300"
+                          style={{ 
+                            width: `${Math.min(100, (selectedEvent.ticketsSold / selectedEvent.ticketSupply) * 100)}%` 
+                          }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center">
+                        {Math.round((selectedEvent.ticketsSold / selectedEvent.ticketSupply) * 100)}% sold
                       </p>
-                      <p className="text-xs text-muted-foreground">Places Left</p>
                     </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-secondary">
-                        {selectedEvent.ticketsSold}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Tickets Sold</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-accent">{selectedEvent.ticketSupply}</p>
-                      <p className="text-xs text-muted-foreground">Total Capacity</p>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-primary">
+                          {selectedEvent.ticketSupply - selectedEvent.ticketsSold}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Places Left</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-secondary">
+                          {selectedEvent.ticketsSold}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Tickets Sold</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-accent">{selectedEvent.ticketSupply}</p>
+                        <p className="text-xs text-muted-foreground">Total Capacity</p>
+                      </div>
                     </div>
                   </div>
                 </div>

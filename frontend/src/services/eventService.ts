@@ -17,6 +17,7 @@ export interface EventData {
 
 const PROGRAM_ID = new PublicKey(idl.address);
 const EVENT_DISCRIMINATOR = [98, 136, 32, 165, 133, 231, 243, 154];
+const TICKET_DISCRIMINATOR = [98, 136, 32, 165, 133, 231, 243, 155]; // Different discriminator for tickets
 
 export async function fetchAllEvents(
   connection: Connection,
@@ -191,13 +192,139 @@ export async function fetchAllEvents(
     const now = Math.floor(Date.now() / 1000);
     const activeEvents = events.filter(event => event.endTs > now);
 
-    // Sort by start time (most recent first)
-    activeEvents.sort((a, b) => b.startTs - a.startTs);
+    // Deduplicate events based on name, organizer, and timing
+    // Keep the most recent event if there are duplicates
+    const uniqueEvents = new Map<string, EventData>();
+    
+    activeEvents.forEach(event => {
+      const key = `${event.name}-${event.authority}`;
+      const existing = uniqueEvents.get(key);
+      
+      if (!existing) {
+        uniqueEvents.set(key, event);
+      } else {
+        // If we have a duplicate, keep the one with the most recent timestamp
+        // This handles cases where the retry logic created multiple events
+        if (event.startTs > existing.startTs) {
+          console.log(`Removing duplicate event: ${event.name} (keeping newer version)`);
+          uniqueEvents.set(key, event);
+        } else {
+          console.log(`Removing duplicate event: ${event.name} (keeping existing version)`);
+        }
+      }
+    });
 
-    return activeEvents;
+    // Convert back to array and sort by start time (most recent first)
+    const deduplicatedEvents = Array.from(uniqueEvents.values());
+    deduplicatedEvents.sort((a, b) => b.startTs - a.startTs);
+
+    console.log(`Deduplicated ${activeEvents.length} events to ${deduplicatedEvents.length} unique events`);
+    
+    // Fetch real ticket counts for each event
+    const eventsWithRealData = await Promise.all(
+      deduplicatedEvents.map(async (event) => {
+        try {
+          const realTicketData = await fetchRealTicketData(connection, event.publicKey);
+          return {
+            ...event,
+            ticketsSold: realTicketData.ticketsSold,
+            // Keep the original ticketSupply from the event account, don't override it
+            ticketSupply: event.ticketSupply
+          };
+        } catch (error) {
+          console.error(`Error fetching real ticket data for event ${event.name}:`, error);
+          return event; // Return original event data if real data fetch fails
+        }
+      })
+    );
+    
+    return eventsWithRealData;
   } catch (error) {
     console.error("Error fetching events:", error);
     return [];
+  }
+}
+
+/**
+ * Fetch real ticket data for an event by counting actual ticket accounts
+ */
+async function fetchRealTicketData(
+  connection: Connection,
+  eventPublicKey: string
+): Promise<{ ticketsSold: number; ticketSupply: number }> {
+  try {
+    console.log(`🎫 Fetching real ticket data for event: ${eventPublicKey}`);
+    
+    // Fetch all ticket accounts for this event
+    const ticketFilters = [
+      {
+        memcmp: {
+          offset: 0,
+          bytes: anchor.utils.bytes.bs58.encode(Buffer.from(TICKET_DISCRIMINATOR)),
+        },
+      },
+      {
+        memcmp: {
+          offset: 8, // After discriminator, event pubkey starts at offset 8
+          bytes: eventPublicKey,
+        },
+      },
+    ];
+
+    const ticketAccounts = await connection.getProgramAccounts(PROGRAM_ID, {
+      filters: ticketFilters,
+    });
+
+    const ticketsSold = ticketAccounts.length;
+    
+    console.log(`🎫 Event ${eventPublicKey}: ${ticketsSold} tickets sold`);
+    
+    return {
+      ticketsSold,
+      ticketSupply: 100 // This will be overridden by the original event data
+    };
+  } catch (error) {
+    console.error(`Error fetching real ticket data for event ${eventPublicKey}:`, error);
+    return {
+      ticketsSold: 0,
+      ticketSupply: 100
+    };
+  }
+}
+
+/**
+ * Get detailed ticket statistics for an event
+ */
+export async function getEventTicketStats(
+  connection: Connection,
+  eventPublicKey: string
+): Promise<{
+  totalTickets: number;
+  ticketsSold: number;
+  ticketsAvailable: number;
+  soldPercentage: number;
+}> {
+  try {
+    const realTicketData = await fetchRealTicketData(connection, eventPublicKey);
+    const ticketsAvailable = Math.max(0, realTicketData.ticketSupply - realTicketData.ticketsSold);
+    const soldPercentage = realTicketData.ticketSupply > 0 
+      ? Math.round((realTicketData.ticketsSold / realTicketData.ticketSupply) * 100)
+      : 0;
+
+    return {
+      totalTickets: realTicketData.ticketSupply,
+      ticketsSold: realTicketData.ticketsSold,
+      ticketsAvailable,
+      soldPercentage
+    };
+  } catch (error) {
+    console.error(`Error getting ticket stats for event ${eventPublicKey}:`, error);
+    return {
+      totalTickets: 100,
+      ticketsSold: 0,
+      ticketsAvailable: 100,
+      soldPercentage: 0
+    };
   }
 }
 
@@ -299,11 +426,24 @@ export async function fetchEventsByKeys(
 
     const results = await Promise.all(promises);
 
-    results.forEach((eventData) => {
+    // Update each event with real ticket data
+    for (const eventData of results) {
       if (eventData) {
-        eventsMap.set(eventData.publicKey, eventData);
+        try {
+          const realTicketData = await fetchRealTicketData(connection, eventData.publicKey);
+          const updatedEventData = {
+            ...eventData,
+            ticketsSold: realTicketData.ticketsSold,
+            // Keep the original ticketSupply from the event account, don't override it
+            ticketSupply: eventData.ticketSupply
+          };
+          eventsMap.set(eventData.publicKey, updatedEventData);
+        } catch (error) {
+          console.error(`Error fetching real ticket data for event ${eventData.publicKey}:`, error);
+          eventsMap.set(eventData.publicKey, eventData); // Use original data if real data fetch fails
+        }
       }
-    });
+    }
 
     console.log(`✅ Fetched ${eventsMap.size} events successfully`);
   } catch (error) {
@@ -394,8 +534,8 @@ export async function createEvent(
   // Create program instance
   const program = new Program(idl as any, provider);
 
-  // Generate unique event ID from timestamp
-  const eventId = new BN(Date.now());
+  // Generate unique event ID from timestamp + random component to reduce collisions
+  const eventId = new BN(Date.now() + Math.floor(Math.random() * 10000));
 
   // Convert dates to Unix timestamps
   const startTs = new BN(Math.floor(params.startDate.getTime() / 1000));
@@ -419,6 +559,21 @@ export async function createEvent(
     eventPda: eventPda.toString(),
   });
 
+  // Check if an event with the same name and organizer already exists
+  try {
+    const existingEvents = await fetchAllEvents(connection, wallet.publicKey);
+    const duplicateEvent = existingEvents.find(event => 
+      event.name === params.name && 
+      event.authority === wallet.publicKey.toString()
+    );
+    
+    if (duplicateEvent) {
+      throw new Error(`An event with the name "${params.name}" already exists. Please choose a different name.`);
+    }
+  } catch (checkError) {
+    console.log("Could not check for existing events, proceeding with creation");
+  }
+
   try {
     // Call create_event instruction
     const tx = await program.methods
@@ -437,7 +592,22 @@ export async function createEvent(
     // Check if the error is due to account already existing
     if (error?.message?.includes("already in use") ||
         error?.message?.includes("already been processed")) {
-      // Add a small random offset to eventId and retry once
+      
+      // First, check if the original event was actually created successfully
+      try {
+        const existingEvent = await connection.getAccountInfo(eventPda);
+        if (existingEvent) {
+          console.log("Event already exists, returning existing transaction");
+          // The event was created successfully, just return a mock signature
+          // since we can't get the original transaction signature
+          return "existing-event-" + eventPda.toString();
+        }
+      } catch (checkError) {
+        console.log("Could not check existing event, proceeding with retry");
+      }
+
+      // Only retry if the event doesn't actually exist
+      console.log("Event account doesn't exist, retrying with new ID");
       const retryEventId = eventId.add(new BN(Math.floor(Math.random() * 1000)));
 
       const [retryEventPda] = web3.PublicKey.findProgramAddressSync(
