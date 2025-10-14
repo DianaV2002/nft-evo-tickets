@@ -96,7 +96,7 @@ export default function Tickets() {
 
   const getTicketImage = (stage: number): string => {
     switch (stage) {
-      case 0: return "🎫" // Prestige
+      case 0: return "" // Prestige
       case 1: return "📱" // QR
       case 2: return "✅" // Scanned
       case 3: return "💎" // Collectible

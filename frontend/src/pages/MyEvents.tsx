@@ -247,7 +247,7 @@ export default function MyEvents() {
                     />
                   ) : null}
                   <div className={`w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center ${event.coverImageUrl && getImageDisplayUrl(event.coverImageUrl) ? 'hidden' : ''}`}>
-                    <div className="text-6xl opacity-40">🎫</div>
+                    <div className="text-6xl opacity-40"></div>
                   </div>
                   <div className="absolute top-2 right-2">
                     <Badge className={getStatusColor(status)}>

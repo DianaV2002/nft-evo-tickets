@@ -13,7 +13,7 @@ describe("Buy Ticket - Simple Test", function() {
   const program = anchor.workspace.NftEvoTickets as Program<NftEvoTickets>;
 
   it("Buy a listed ticket", async () => {
-    console.log("\n🎫 Starting Buy Ticket Test\n");
+    console.log("\n Starting Buy Ticket Test\n");
 
     // Load seller keypair and set buyer to your wallet
     const sellerSecret = JSON.parse(fs.readFileSync("tests/fixtures/seller.json", "utf-8"));

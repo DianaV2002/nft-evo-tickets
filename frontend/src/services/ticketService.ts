@@ -49,8 +49,8 @@ export async function fetchUserTickets(
   ownerPublicKey: PublicKey
 ): Promise<TicketData[]> {
   try {
-    console.log("🎫 Fetching tickets for owner:", ownerPublicKey.toBase58());
-    console.log("🎫 Program ID:", PROGRAM_ID.toBase58());
+    console.log(" Fetching tickets for owner:", ownerPublicKey.toBase58());
+    console.log(" Program ID:", PROGRAM_ID.toBase58());
 
     const filters: any[] = [
       {
@@ -67,12 +67,12 @@ export async function fetchUserTickets(
       },
     ];
 
-    console.log("🎫 Fetching program accounts with filters...");
+    console.log(" Fetching program accounts with filters...");
     const accounts = await connection.getProgramAccounts(PROGRAM_ID, {
       filters,
     });
 
-    console.log(`🎫 Found ${accounts.length} ticket account(s)`);
+    console.log(` Found ${accounts.length} ticket account(s)`);
     const tickets: TicketData[] = [];
 
     for (const account of accounts) {
@@ -154,7 +154,7 @@ export async function fetchUserTickets(
       }
     }
 
-    console.log("🎫 Successfully parsed tickets:", tickets);
+    console.log(" Successfully parsed tickets:", tickets);
     return tickets;
   } catch (error) {
     console.error("❌ Error fetching user tickets:", error);
