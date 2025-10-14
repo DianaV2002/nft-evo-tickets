@@ -1,13 +1,16 @@
-import { Ticket, Calendar, MapPin, QrCode, Share2, DollarSign, Loader2 } from "lucide-react"
+import { Ticket, Calendar, MapPin, QrCode, Share2, DollarSign, Loader2, X, RefreshCw, FileText, Heart } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { UsdcDisplay } from "@/components/ui/usdc-input"
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { useEffect, useState } from "react"
 import { fetchUserTickets, TicketData, getTicketStageName, getTicketRarity } from "@/services/ticketService"
 import { EventData, fetchEventsByKeys, formatEventDate, formatEventTime, getEventStatus } from "@/services/eventService"
 import { getImageDisplayUrl } from "@/services/imageService"
+import { generateQRCodeDataURL, generateQRCodeData, generateNFTExplorerQRData, generateScannerQRData, QRCodeData } from "@/services/qrCodeService"
+import { getTicketContent, getStageBadgeStyle, getStageButtonStyle, getEvolutionStatus, canEvolve, shouldShowQRCode } from "@/services/ticketContentService"
 import { PublicKey } from "@solana/web3.js"
 import { LAMPORTS_PER_SOL } from "@solana/web3.js"
 
@@ -18,6 +21,11 @@ export default function Tickets() {
   const [events, setEvents] = useState<Map<string, EventData>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [qrDialogOpen, setQrDialogOpen] = useState(false)
+  const [selectedTicket, setSelectedTicket] = useState<TicketData | null>(null)
+  const [qrCodeData, setQrCodeData] = useState<string>('')
+  const [qrCodeImage, setQrCodeImage] = useState<string>('')
+  const [qrRefreshInterval, setQrRefreshInterval] = useState<NodeJS.Timeout | null>(null)
 
   // Separate and sort tickets by event date
   const upcomingTickets = tickets
@@ -51,34 +59,32 @@ export default function Tickets() {
   useEffect(() => {
     async function loadTicketsAndEvents() {
       if (!wallet.publicKey) {
-        console.log("⚠️ No wallet connected")
+        console.log("No wallet connected")
         setTickets([])
         setLoading(false)
         return
       }
 
       try {
-        console.log("🔄 Loading tickets and events...")
+        console.log("Loading tickets and events...")
         setLoading(true)
         setError(null)
 
-        // Fetch user's tickets
-        console.log("📋 Fetching user tickets...")
+        console.log("Fetching user tickets...")
         const userTickets = await fetchUserTickets(connection, wallet.publicKey)
-        console.log("✅ Received tickets:", userTickets)
+        console.log("Received tickets:", userTickets)
         setTickets(userTickets)
 
-        // Extract unique event keys from tickets
+
         const eventKeys = [...new Set(userTickets.map(ticket => ticket.event))]
 
-        // Fetch only the events associated with the user's tickets
-        console.log("📋 Fetching events for tickets...")
+        console.log("Fetching events for tickets...")
         const eventsMap = await fetchEventsByKeys(connection, eventKeys)
-        console.log("✅ Received events:", eventsMap)
+        console.log("Received events:", eventsMap)
         setEvents(eventsMap)
-        console.log("✅ Tickets and events loaded successfully")
+        console.log("Tickets and events loaded successfully")
       } catch (err) {
-        console.error("❌ Failed to load tickets:", err)
+        console.error("Failed to load tickets:", err)
         setError(`Failed to load tickets: ${err instanceof Error ? err.message : String(err)}`)
       } finally {
         setLoading(false)
@@ -113,6 +119,90 @@ export default function Tickets() {
       default: return 'bg-muted text-muted-foreground'
     }
   }
+
+  // Generate QR code data and image for a ticket
+  const generateQRCodeForTicket = async (ticket: TicketData) => {
+    try {
+      // Get event data to check timing
+      const event = events.get(ticket.event)
+      if (!event) {
+        setQrCodeData('')
+        setQrCodeImage('')
+        return
+      }
+
+      // Check if QR code should be available based on ticket stage and event timing
+      const shouldShow = shouldShowQRCode(ticket.stage, event.startTs)
+      if (!shouldShow) {
+        setQrCodeData('')
+        setQrCodeImage('')
+        return
+      }
+
+      // Generate QR code with scanner-friendly data
+      const qrDataString = generateScannerQRData({
+        nftMint: ticket.nftMint,
+        publicKey: ticket.publicKey,
+        event: ticket.event,
+        owner: ticket.owner
+      })
+      setQrCodeData(qrDataString)
+      
+      // Generate QR code image
+      const qrCodeImageURL = await generateQRCodeDataURL(qrDataString)
+      setQrCodeImage(qrCodeImageURL)
+    } catch (error) {
+      console.error('Error generating QR code:', error)
+      setQrCodeImage('')
+    }
+  }
+
+  // Start QR code refresh interval
+  const startQRRefresh = async (ticket: TicketData) => {
+    // Clear existing interval
+    if (qrRefreshInterval) {
+      clearInterval(qrRefreshInterval)
+    }
+
+    // Generate initial QR code
+    await generateQRCodeForTicket(ticket)
+
+    // Set up refresh every 10 seconds
+    const interval = setInterval(async () => {
+      await generateQRCodeForTicket(ticket)
+    }, 10000)
+
+    setQrRefreshInterval(interval)
+  }
+
+  // Stop QR code refresh
+  const stopQRRefresh = () => {
+    if (qrRefreshInterval) {
+      clearInterval(qrRefreshInterval)
+      setQrRefreshInterval(null)
+    }
+  }
+
+  // Open QR dialog
+  const openQRDialog = async (ticket: TicketData) => {
+    setSelectedTicket(ticket)
+    setQrDialogOpen(true)
+    await startQRRefresh(ticket)
+  }
+
+  // Close QR dialog
+  const closeQRDialog = () => {
+    setQrDialogOpen(false)
+    setSelectedTicket(null)
+    stopQRRefresh()
+  }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopQRRefresh()
+    }
+  }, [])
 
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
@@ -253,6 +343,23 @@ export default function Tickets() {
                     <CardDescription>
                       {getTicketStageName(ticket.stage)} {ticket.seat ? `• Seat ${ticket.seat}` : ""}
                     </CardDescription>
+                    
+                    {/* Stage-specific content */}
+                    {eventData && (() => {
+                      const content = getTicketContent(ticket.stage, eventData.startTs, eventData.endTs)
+                      return (
+                        <div className="mt-2 p-3 rounded-lg bg-muted/30">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-lg">{content.icon}</span>
+                            <span className={`font-medium ${content.color}`}>{content.title}</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-2">{content.description}</p>
+                          <div className="text-xs text-muted-foreground">
+                            {getEvolutionStatus(ticket.stage, eventData.startTs, eventData.endTs)}
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </CardHeader>
 
                   <CardContent className="space-y-4">
@@ -293,18 +400,66 @@ export default function Tickets() {
 
                     {/* Action Buttons */}
                     <div className="flex space-x-2 pt-2">
-                      {status === 'active' && (
-                        <>
-                          <Button variant="outline" size="sm" className="flex-1 spatial-hover">
-                            <QrCode className="h-4 w-4 mr-1" />
-                            View QR
-                          </Button>
-                          <Button variant="outline" size="sm" className="flex-1 spatial-hover">
-                            <DollarSign className="h-4 w-4 mr-1" />
-                            List
-                          </Button>
-                        </>
-                      )}
+                      {eventData && (() => {
+                        const content = getTicketContent(ticket.stage, eventData.startTs, eventData.endTs)
+                        return (
+                          <>
+                            {/* QR Code Button - Only for QR stage */}
+                            {content.content.qrCode && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex-1 spatial-hover"
+                                onClick={() => openQRDialog(ticket)}
+                              >
+                                <QrCode className="h-4 w-4 mr-1" />
+                                View QR
+                              </Button>
+                            )}
+                            
+                            {/* Event Program Button - For Scanned and Collectible stages */}
+                            {content.content.eventProgram && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex-1 spatial-hover"
+                                onClick={() => {
+                                  // TODO: Implement event program viewer
+                                  console.log('View event program')
+                                }}
+                              >
+                                <FileText className="h-4 w-4 mr-1" />
+                                Program
+                              </Button>
+                            )}
+                            
+                            {/* Memories Button - For Collectible stage */}
+                            {content.content.memories && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex-1 spatial-hover"
+                                onClick={() => {
+                                  // TODO: Implement memories viewer
+                                  console.log('View memories')
+                                }}
+                              >
+                                <Heart className="h-4 w-4 mr-1" />
+                                Memories
+                              </Button>
+                            )}
+                            
+                            {/* List Button - For active tickets */}
+                            {status === 'active' && (
+                              <Button variant="outline" size="sm" className="flex-1 spatial-hover">
+                                <DollarSign className="h-4 w-4 mr-1" />
+                                List
+                              </Button>
+                            )}
+                          </>
+                        )
+                      })()}
+                      
                       {status === 'used' && (
                         <Button variant="outline" size="sm" className="w-full" disabled>
                           Event Completed
@@ -433,6 +588,161 @@ export default function Tickets() {
           </CardContent>
         </Card>
       )}
+
+      {/* QR Code Dialog */}
+      <Dialog open={qrDialogOpen} onOpenChange={closeQRDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              Ticket QR Code
+            </DialogTitle>
+            <DialogDescription>
+              {selectedTicket && events.get(selectedTicket.event) ? (
+                shouldShowQRCode(selectedTicket.stage, events.get(selectedTicket.event)!.startTs) 
+                  ? "Your ticket QR code contains scanner data for event entry and links to the NFT mint on Solana Explorer. It refreshes every 10 seconds for security."
+                  : `QR codes are only available when your ticket is in the QR stage (after the event starts).`
+              ) : "Loading ticket information..."
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedTicket && (
+            <div className="space-y-4">
+              {/* Event Info */}
+              <div className="bg-muted/30 rounded-lg p-3">
+                <h3 className="font-semibold text-sm mb-2">
+                  {events.get(selectedTicket.event)?.name || "Loading Event..."}
+                </h3>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>Ticket: {selectedTicket.publicKey.slice(0, 8)}...{selectedTicket.publicKey.slice(-8)}</p>
+                  <p>Stage: {getTicketStageName(selectedTicket.stage)}</p>
+                  {selectedTicket.seat && <p>Seat: {selectedTicket.seat}</p>}
+                </div>
+              </div>
+
+              {/* QR Code Display */}
+              <div className="flex flex-col items-center space-y-4">
+                <div className="bg-white p-4 rounded-lg border-2 border-dashed border-muted-foreground/20">
+                  {selectedTicket && events.get(selectedTicket.event) && shouldShowQRCode(selectedTicket.stage, events.get(selectedTicket.event)!.startTs) ? (
+                    qrCodeImage ? (
+                      <div className="text-center">
+                        <img 
+                          src={qrCodeImage} 
+                          alt="Ticket QR Code" 
+                          className="w-64 h-64 mx-auto"
+                        />
+                        <p className="text-sm text-muted-foreground mt-2">QR Code</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Auto-refreshes every 10 seconds
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <div className="text-6xl mb-2">📱</div>
+                        <p className="text-sm text-muted-foreground">Generating QR Code...</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Please wait...
+                        </p>
+                      </div>
+                    )
+                  ) : (
+                    <div className="text-center">
+                      <div className="text-6xl mb-2">🔒</div>
+                      <p className="text-sm text-muted-foreground">QR Code Not Available</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Available when event starts (QR stage)
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Current stage: {getTicketStageName(selectedTicket.stage)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* QR Code Info - Only show for QR stage */}
+                {selectedTicket.stage === 1 && (
+                  <div className="w-full space-y-3">
+                    {/* Scanner Data */}
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Scanner Data:</p>
+                      <div className="bg-muted/30 rounded p-2 text-xs font-mono break-all">
+                        {(() => {
+                          try {
+                            const data = JSON.parse(qrCodeData)
+                            return `NFT Mint: ${data.nftMint}`
+                          } catch {
+                            return qrCodeData
+                          }
+                        })()}
+                      </div>
+                    </div>
+                    
+                    {/* Explorer Link */}
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">View on Solana Explorer:</p>
+                      <div className="bg-muted/30 rounded p-2 text-xs">
+                        {(() => {
+                          try {
+                            const data = JSON.parse(qrCodeData)
+                            return (
+                              <a 
+                                href={data.explorerUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 underline break-all"
+                              >
+                                {data.explorerUrl}
+                              </a>
+                            )
+                          } catch {
+                            return <span className="text-muted-foreground">Invalid QR data</span>
+                          }
+                        })()}
+                      </div>
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground">
+                      QR code contains ticket data for scanning and Explorer link for viewing
+                    </p>
+                  </div>
+                )}
+
+                {/* Refresh Indicator - Only show for QR stage */}
+                {selectedTicket.stage === 1 && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span>Refreshing automatically...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={closeQRDialog}
+                  className="flex-1"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Close
+                </Button>
+                <Button
+                  onClick={async () => {
+                    if (selectedTicket) {
+                      await generateQRCodeForTicket(selectedTicket)
+                    }
+                  }}
+                  className="flex-1"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh Now
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -166,6 +166,7 @@ pub fn handler(
             while !s.is_char_boundary(cut) { cut -= 1; }
             s.truncate(cut);
         }
+        s
     }
 
     let mut metadata_uri = if let Some(uri) = metadata_uri_override {

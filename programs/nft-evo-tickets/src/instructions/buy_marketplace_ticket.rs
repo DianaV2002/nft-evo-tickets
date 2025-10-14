@@ -100,19 +100,17 @@ pub fn handler(ctx: Context<BuyMarketplaceTicketCtx>) -> Result<()> {
     )?;
 
    // Pay fee (if any)
-    if let Some(event_authority) = &ctx.accounts.event_authority {
-        if fee_amount > 0 {
-            system_program::transfer(
-                CpiContext::new(
-                    ctx.accounts.system_program.to_account_info(),
-                    system_program::Transfer {
-                        from: ctx.accounts.buyer.to_account_info(),
-                        to: event_authority.to_account_info(),
-                    },
-                ),
-                fee_amount,
-            )?;
-        }
+    if fee_amount > 0 {
+        system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.event_account.to_account_info(),
+                },
+            ),
+            fee_amount,
+        )?;
     }
     
     // Transfer NFT from escrow to buyer

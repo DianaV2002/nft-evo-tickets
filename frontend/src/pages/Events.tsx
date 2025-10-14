@@ -1,4 +1,4 @@
-import { Calendar, Clock, Loader2, ChevronDown, ChevronUp } from "lucide-react"
+import { Calendar, Clock, Loader2, ChevronDown, ChevronUp, Leaf, Coins, Zap, TreePine, CheckCircle2, Info, Edit } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ import { recordActivity } from "@/services/levelService"
 import { PublicKey } from "@solana/web3.js"
 import { LAMPORTS_PER_SOL } from "@solana/web3.js"
 import { toast } from "sonner"
+import EditEventDialog from "@/components/EditEventDialog"
 
 export default function Events() {
   const { connection } = useConnection()
@@ -23,29 +24,39 @@ export default function Events() {
   const [buyingTicket, setBuyingTicket] = useState(false)
   const [listings, setListings] = useState<any[]>([])
 
-  // Use the status update hook
   const { lastUpdate, statusChanges, hasRecentChanges } = useEventStatusUpdate(events)
   const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
+  const [showPurchaseConfirmation, setShowPurchaseConfirmation] = useState(false)
+  const [ticketPrice, setTicketPrice] = useState<number>(0.1) // Default 0.1 SOL
+  const [environmentalImpact, setEnvironmentalImpact] = useState<{
+    carbonReduced: number;
+    treesPlanted: number;
+    energySaved: number;
+  }>({ carbonReduced: 0, treesPlanted: 0, energySaved: 0 })
+  const [purchaseSuccess, setPurchaseSuccess] = useState<{
+    txSignature: string;
+    explorerUrl: string;
+  } | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<EventData | null>(null)
+
+  const loadEvents = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const fetchedEvents = await fetchAllEvents(connection)
+      setEvents(fetchedEvents)
+    } catch (err) {
+      console.error("Failed to load events:", err)
+      setError("Failed to load events from the blockchain")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    async function loadEvents() {
-      try {
-        setLoading(true)
-        setError(null)
-        // Fetch all events owned by the current program (no authority filter)
-        // This will show all events created through program 6mz15gSnFGTWzjHsveE8aFpVTKjdiLkVfQKtvFf1CGdc
-        const fetchedEvents = await fetchAllEvents(connection)
-        setEvents(fetchedEvents)
-      } catch (err) {
-        console.error("Failed to load events:", err)
-        setError("Failed to load events from the blockchain")
-      } finally {
-        setLoading(false)
-      }
-    }
-
     loadEvents()
   }, [connection])
 
@@ -59,24 +70,48 @@ export default function Events() {
       toast.error("No event selected")
       return
     }
+    calculateEnvironmentalImpact(selectedEvent)
+    setShowPurchaseConfirmation(true)
+  }
+
+  const handleConfirmPurchase = async () => {
+    if (!selectedEvent) return
 
     try {
       setBuyingTicket(true)
+      setShowPurchaseConfirmation(false)
       toast.loading("Purchasing your ticket...")
 
-      // Buy a ticket from event (price: 0.1 SOL as example)
-      const ticketPrice = 0.1 * LAMPORTS_PER_SOL;
+      // Buy a ticket from event
+      const ticketPriceLamports = ticketPrice * LAMPORTS_PER_SOL;
       const tx = await buyEventTicket(
         connection,
         wallet,
         new PublicKey(selectedEvent.publicKey),
-        ticketPrice,
+        ticketPriceLamports,
         undefined // seat number (optional)
       )
 
       toast.dismiss()
       toast.success("Ticket purchased successfully!")
-      toast.success(`Transaction: ${tx.slice(0, 8)}...${tx.slice(-8)}`)
+      
+      // Create Solana Explorer link for devnet
+      const explorerUrl = `https://explorer.solana.com/tx/${tx}?cluster=devnet`
+      setPurchaseSuccess({ txSignature: tx, explorerUrl })
+      
+      toast.success(
+        <div className="flex items-center gap-2">
+          <span>Transaction: {tx.slice(0, 8)}...{tx.slice(-8)}</span>
+          <a 
+            href={explorerUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 underline"
+          >
+            View on Explorer
+          </a>
+        </div>
+      )
       
       // Check if event has started to inform user about ticket stage
       const now = Math.floor(Date.now() / 1000)
@@ -101,7 +136,6 @@ export default function Events() {
         }
       } catch (activityError) {
         console.error('Failed to record activity:', activityError)
-        // Don't fail the flow if points recording fails
       }
 
       setIsDialogOpen(false)
@@ -145,6 +179,25 @@ export default function Events() {
         newSet.add(eventId)
       }
       return newSet
+    })
+  }
+
+  // Calculate environmental impact for ticket purchase
+  const calculateEnvironmentalImpact = (event: EventData) => {
+    // Traditional paper ticket impact per attendee
+    const paperTicketCO2 = 0.5 // kg CO2 per paper ticket
+    const blockchainTicketCO2 = 0.1 // kg CO2 per blockchain ticket
+    const carbonReduced = paperTicketCO2 - blockchainTicketCO2
+    
+    // Trees planted calculation (1 tree absorbs ~22kg CO2 per year)
+    const treesPlanted = carbonReduced / 22
+    
+    const energySaved = 0.3 // kWh saved per ticket
+    
+    setEnvironmentalImpact({
+      carbonReduced,
+      treesPlanted,
+      energySaved
     })
   }
 
@@ -263,7 +316,7 @@ export default function Events() {
                     <div className="flex justify-between items-center text-sm mt-1">
                       <span className="text-muted-foreground">Places Left</span>
                       <span className="text-xs font-medium text-primary">
-                        {event.ticketSupply - event.ticketsSold} available
+                        {Math.max(0, event.ticketSupply - event.ticketsSold)} available
                       </span>
                     </div>
                     
@@ -331,6 +384,24 @@ export default function Events() {
                     >
                       View Details
                     </Button>
+                    
+                    {/* Edit Button - Only show for events owned by current wallet */}
+                    {wallet.publicKey && event.authority === wallet.publicKey.toString() && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          console.log("Edit button clicked for event:", event.eventId, "Authority:", event.authority, "Wallet:", wallet.publicKey?.toString())
+                          setEditingEvent(event)
+                          setEditDialogOpen(true)
+                        }}
+                        disabled={event.ticketsSold > 0 || Date.now() / 1000 >= event.startTs}
+                        title={event.ticketsSold > 0 ? "Cannot edit: tickets already sold" : Date.now() / 1000 >= event.startTs ? "Cannot edit: event has started" : "Edit event"}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                    
                     <Button
                       className="flex-1 bg-gradient-primary neon-glow spatial-hover"
                       onClick={() => {
@@ -429,7 +500,7 @@ export default function Events() {
                     <div className="grid grid-cols-3 gap-4">
                       <div className="text-center">
                         <p className="text-2xl font-bold text-primary">
-                          {selectedEvent.ticketSupply - selectedEvent.ticketsSold}
+                          {Math.max(0, selectedEvent.ticketSupply - selectedEvent.ticketsSold)}
                         </p>
                         <p className="text-xs text-muted-foreground">Places Left</p>
                       </div>
@@ -503,6 +574,186 @@ export default function Events() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Purchase Confirmation Dialog */}
+      <Dialog open={showPurchaseConfirmation} onOpenChange={setShowPurchaseConfirmation}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+              Confirm Ticket Purchase
+            </DialogTitle>
+            <DialogDescription>
+              Review your purchase details and environmental impact.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedEvent && (
+            <div className="space-y-4">
+              {/* Success State */}
+              {purchaseSuccess ? (
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 text-center">
+                  <CheckCircle2 className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                  <h3 className="font-semibold text-green-800 dark:text-green-200 mb-2">
+                    Ticket Purchased Successfully!
+                  </h3>
+                  <p className="text-sm text-green-700 dark:text-green-300 mb-3">
+                    Your NFT ticket has been minted and added to your wallet.
+                  </p>
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      Transaction: {purchaseSuccess.txSignature.slice(0, 8)}...{purchaseSuccess.txSignature.slice(-8)}
+                    </p>
+                    <a 
+                      href={purchaseSuccess.explorerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 underline text-sm"
+                    >
+                      View on Solana Explorer
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Event Summary - Compact */}
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <h3 className="font-semibold text-base mb-2">{selectedEvent.name}</h3>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{formatEventDate(selectedEvent.startTs)}</span>
+                      <span className="text-muted-foreground">{formatEventTime(selectedEvent.startTs, selectedEvent.endTs)}</span>
+                    </div>
+                  </div>
+
+                  {/* Pricing & Environmental Impact - Side by Side */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Pricing */}
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-sm flex items-center gap-1">
+                        <Coins className="h-3 w-3" />
+                        Cost
+                      </h4>
+                      <div className="bg-muted/30 rounded-lg p-3 space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Ticket</span>
+                          <span className="font-medium">{ticketPrice} SOL</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Fees</span>
+                          <span className="font-medium">~0.00008 SOL</span>
+                        </div>
+                        <div className="border-t pt-1 flex justify-between font-semibold">
+                          <span>Total</span>
+                          <span className="text-primary">~{ticketPrice.toFixed(6)} SOL</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Environmental Impact */}
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-sm flex items-center gap-1">
+                        <Leaf className="h-3 w-3 text-green-600" />
+                        Impact
+                      </h4>
+                      <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
+                        <div className="text-lg font-bold text-green-600 mb-1">
+                          {environmentalImpact.carbonReduced.toFixed(3)} kg CO₂
+                        </div>
+                        <p className="text-xs text-green-700 dark:text-green-300">
+                          {((environmentalImpact.carbonReduced / 0.5) * 100).toFixed(0)}% reduction
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Environmental Message - Compact */}
+                  <div className="bg-green-100 dark:bg-green-800/30 rounded-lg p-3">
+                    <p className="text-sm text-green-700 dark:text-green-300 text-center">
+                      🌱 <strong>Eco-friendly choice!</strong> You're reducing environmental impact by{" "}
+                      <strong>{((environmentalImpact.carbonReduced / 0.5) * 100).toFixed(0)}%</strong> vs paper tickets.
+                    </p>
+                  </div>
+
+                  {/* Transaction Details - Compact */}
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <h4 className="font-semibold text-sm mb-2 flex items-center gap-1">
+                      <Zap className="h-3 w-3" />
+                      Transaction
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Network:</span>
+                        <p className="font-medium">Solana Devnet</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Speed:</span>
+                        <p className="font-medium">~2-3 sec</p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-3 border-t">
+                {purchaseSuccess ? (
+                  <Button
+                    onClick={() => {
+                      setShowPurchaseConfirmation(false)
+                      setPurchaseSuccess(null)
+                    }}
+                    className="flex-1 bg-gradient-primary neon-glow"
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Close
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowPurchaseConfirmation(false)}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleConfirmPurchase}
+                      disabled={buyingTicket}
+                      className="flex-1 bg-gradient-primary neon-glow"
+                    >
+                      {buyingTicket ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                          Confirm
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Event Dialog */}
+      <EditEventDialog
+        isOpen={editDialogOpen}
+        onClose={() => {
+          setEditDialogOpen(false)
+          setEditingEvent(null)
+        }}
+        event={editingEvent}
+        onEventUpdated={() => {
+          // Reload events after update
+          loadEvents()
+        }}
+      />
     </div>
   )
 }

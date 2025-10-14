@@ -36,3 +36,6 @@ pub use buy_event_ticket::{BuyEventTicketCtx, handler as buy_event_ticket_handle
 
 pub mod delete_event;
 pub use delete_event::{DeleteEventCtx, handler as delete_event_handler};
+
+pub mod update_event;
+pub use update_event::{UpdateEventCtx, handler as update_event_handler};

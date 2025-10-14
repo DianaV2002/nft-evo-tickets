@@ -85,10 +85,18 @@ export default function Scanner() {
 
       const program = new Program(idl.default as any, provider) as any
 
-      // Parse QR code (should be NFT mint address)
       let nftMint: PublicKey
       try {
-        nftMint = new PublicKey(qrCodeInput.trim())
+        try {
+          const qrData = JSON.parse(qrCodeInput.trim())
+          if (qrData.nftMint && qrData.type === 'nft-ticket') {
+            nftMint = new PublicKey(qrData.nftMint)
+          } else {
+            throw new Error('Invalid QR data format')
+          }
+        } catch {
+          nftMint = new PublicKey(qrCodeInput.trim())
+        }
       } catch {
         toast.error('Invalid QR code format')
         return

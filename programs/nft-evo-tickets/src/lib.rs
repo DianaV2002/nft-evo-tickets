@@ -23,6 +23,7 @@ use crate::instructions::upgrade_to_collectible::__client_accounts_upgrade_to_co
 use crate::instructions::set_scanner::__client_accounts_set_scanner;
 use crate::instructions::buy_event_ticket::__client_accounts_buy_event_ticket_ctx;
 use crate::instructions::delete_event::__client_accounts_delete_event_ctx;
+use crate::instructions::update_event::__client_accounts_update_event_ctx;
 
 #[program]
 pub mod nft_evo_tickets {
@@ -112,5 +113,17 @@ pub mod nft_evo_tickets {
         event_id: u64,
     ) -> Result<()> {
         delete_event_handler(ctx, event_id)
+    }
+
+    pub fn update_event(
+        ctx: Context<UpdateEventCtx>,
+        event_id: u64,
+        name: String,
+        start_ts: i64,
+        end_ts: i64,
+        ticket_supply: u32,
+        cover_image_url: String,
+    ) -> Result<()> {
+        update_event_handler(ctx, event_id, name, start_ts, end_ts, ticket_supply, cover_image_url)
     }
 }

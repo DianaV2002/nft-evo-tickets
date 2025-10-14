@@ -487,12 +487,14 @@ export async function deleteEvent(
 
   const { Program, AnchorProvider, BN, web3 } = await import("@coral-xyz/anchor");
 
+  // Create provider
   const provider = new AnchorProvider(
     connection,
     wallet,
     { commitment: "confirmed" }
   );
 
+  // Create program instance
   const program = new Program(idl as any, provider);
 
   console.log("Deleting event:", {
@@ -501,6 +503,7 @@ export async function deleteEvent(
   });
 
   try {
+    // Call delete_event instruction
     const tx = await program.methods
       .deleteEvent()
       .accounts({
@@ -567,6 +570,7 @@ export async function createEvent(
     eventPda: eventPda.toString(),
   });
 
+  // Check if an event with the same name and organizer already exists
   try {
     const existingEvents = await fetchAllEvents(connection, wallet.publicKey);
     const duplicateEvent = existingEvents.find(event => 
@@ -579,6 +583,7 @@ export async function createEvent(
     }
   } catch (error) {
     console.warn("Could not check for duplicate events:", error);
+    // Continue with event creation
   }
 
   try {
@@ -588,7 +593,7 @@ export async function createEvent(
         params.name,
         startTs,
         endTs,
-        new BN(params.ticketSupply)
+        new BN(params.capacity)
       )
       .accounts({
         organizer: wallet.publicKey,
@@ -622,7 +627,7 @@ export async function createEvent(
           params.name,
           startTs,
           endTs,
-          new BN(params.ticketSupply)
+          new BN(params.capacity)
         )
         .accounts({
           organizer: wallet.publicKey,
@@ -635,57 +640,6 @@ export async function createEvent(
       return tx;
     }
 
-    throw error;
-  }
-}
-
-export async function updateEvent(
-  connection: web3.Connection,
-  wallet: any,
-  eventId: number,
-  params: {
-    name: string
-    startTs: number
-    endTs: number
-    ticketSupply: number
-    coverImageUrl: string
-  }
-): Promise<string> {
-  try {
-    const program = new Program(idl.default as any, new AnchorProvider(connection, wallet as any, { commitment: 'confirmed' })) as any
-
-    const eventIdBN = new BN(eventId)
-    const [eventPda] = web3.PublicKey.findProgramAddressSync(
-      [
-        Buffer.from("nft-evo-tickets"),
-        Buffer.from("event"),
-        eventIdBN.toArrayLike(Buffer, "le", 8),
-      ],
-      PROGRAM_ID
-    )
-
-    const startTs = new BN(params.startTs)
-    const endTs = new BN(params.endTs)
-
-    const tx = await program.methods
-      .updateEvent(
-        eventIdBN,
-        params.name,
-        startTs,
-        endTs,
-        new BN(params.ticketSupply),
-        params.coverImageUrl
-      )
-      .accounts({
-        authority: wallet.publicKey,
-        eventAccount: eventPda,
-      })
-      .rpc();
-
-    console.log("Event updated! Transaction:", tx);
-    return tx;
-  } catch (error: any) {
-    console.error("Error updating event:", error);
     throw error;
   }
 }
