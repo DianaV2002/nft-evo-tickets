@@ -15,18 +15,23 @@
     "vscode": {
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash"
-      }
+      },
+      "extensions": [
+        "anthropic.claude-code"
+      ]
     }
   },
 
   "postCreateCommand": "npm install",
+  "postStartCommand": "npm start",
 
-  "forwardPorts": [3000, 8080],
+  "forwardPorts": [3000, 8001, 8080],
 
   "remoteUser": "codespace",
   "portsAttributes": {
     "8080": {
-      "label": "main 8080"
+      "label": "main 8080",
+      "visibility": "public"
     }
   }
 }
