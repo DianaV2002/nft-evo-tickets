@@ -24,4 +24,8 @@ pub enum ErrorCode {
     EventNotOver,
     #[msg("The ticket was not scanned for attendance")]
     TicketNotScanned,
+    #[msg("Event has already started")]
+    EventAlreadyStarted,
+    #[msg("Tickets have already been sold")]
+    TicketsAlreadySold,
 }

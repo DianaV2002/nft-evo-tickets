@@ -68,11 +68,10 @@ pub struct BuyMarketplaceTicketCtx<'info> {
 }
 
 pub fn handler(ctx: Context<BuyMarketplaceTicketCtx>) -> Result<()> {
-    let ticket_key = ctx.accounts.ticket_account.key(); // Extract key before mutable borrow
+    let ticket_key = ctx.accounts.ticket_account.key();
     let ticket = &mut ctx.accounts.ticket_account;
     let listing = &ctx.accounts.listing_account;
     
-    // Validate payment amount
     require!(
         ctx.accounts.buyer.lamports() >= listing.price_lamports,
         ErrorCode::InsufficientPayment
@@ -101,22 +100,18 @@ pub fn handler(ctx: Context<BuyMarketplaceTicketCtx>) -> Result<()> {
     )?;
 
    // Pay fee (if any)
-   /*
-    if let Some(event_authority) = &ctx.accounts.event_authority {
-        if fee_amount > 0 {
-            system_program::transfer(
-                CpiContext::new(
-                    ctx.accounts.system_program.to_account_info(),
-                    system_program::Transfer {
-                        from: ctx.accounts.buyer.to_account_info(),
-                        to: event_authority.to_account_info(),
-                    },
-                ),
-                fee_amount,
-            )?;
-        }
+    if fee_amount > 0 {
+        system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.event_account.to_account_info(),
+                },
+            ),
+            fee_amount,
+        )?;
     }
-    */
     
     // Transfer NFT from escrow to buyer
     let cpi_accounts = Transfer {
@@ -129,7 +124,7 @@ pub fn handler(ctx: Context<BuyMarketplaceTicketCtx>) -> Result<()> {
     let seeds = &[
         PROGRAM_SEED.as_bytes(),
         LISTING_SEED.as_bytes(),
-        ticket_key.as_ref(), // Use extracted key
+        ticket_key.as_ref(),
         &[ctx.accounts.listing_account.bump]
     ];
     let signer_seeds = &[&seeds[..]];
@@ -138,7 +133,6 @@ pub fn handler(ctx: Context<BuyMarketplaceTicketCtx>) -> Result<()> {
     
     token::transfer(cpi_ctx, 1)?;
     
-    // Update ticket ownership
     ticket.owner = ctx.accounts.buyer.key();
     ticket.is_listed = false;
     

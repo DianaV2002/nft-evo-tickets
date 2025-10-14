@@ -28,7 +28,6 @@ pub fn handler(
     start_ts: i64,
     end_ts: i64,
 ) -> Result<()> {
-    // Basic validation
     require!(name.len() <= 64, ErrorCode::InvalidInput);
     require!(end_ts > start_ts, ErrorCode::InvalidInput);
 

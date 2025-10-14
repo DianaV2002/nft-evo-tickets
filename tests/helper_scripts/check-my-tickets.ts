@@ -151,7 +151,7 @@ async function fetchUserTickets(
 }
 
 async function main() {
-  console.log("\n🎫 NFT Ticket Checker");
+  console.log("\n NFT Ticket Checker");
   console.log("=".repeat(50));
 
   // Connect to devnet
@@ -188,7 +188,7 @@ async function main() {
     console.log("=".repeat(50));
 
     tickets.forEach((ticket, index) => {
-      console.log(`\n🎫 Ticket #${index + 1}`);
+      console.log(`\n Ticket #${index + 1}`);
       console.log("─".repeat(50));
       console.log(`   Account:      ${ticket.publicKey}`);
       console.log(`   Event:        ${ticket.event}`);

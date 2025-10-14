@@ -71,7 +71,7 @@ async function checkTicketStatus(
     // Fetch event details
     try {
       const event = await program.account.eventAccount.fetch(ticket.event);
-      console.log('\n🎫 Event Information:');
+      console.log('\n Event Information:');
       console.log(`  Name: ${event.name}`);
       console.log(`  Event ID: ${event.eventId.toString()}`);
       console.log(`  Start: ${new Date(event.startTs.toNumber() * 1000).toISOString()}`);
@@ -187,7 +187,7 @@ function getStageLabel(stage: any): string {
 
 // Main execution
 async function main() {
-  console.log('🎫 NFT Ticket Status Checker\n');
+  console.log(' NFT Ticket Status Checker\n');
 
   // Parse command line arguments
   const args = process.argv.slice(2);

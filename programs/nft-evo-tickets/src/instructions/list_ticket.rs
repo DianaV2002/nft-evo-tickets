@@ -50,13 +50,12 @@ pub struct ListTicketCtx<'info> {
     )]
     pub seller_nft_account: Account<'info, TokenAccount>,
     
-    /// Escrow NFT token account (owned by listing PDA)
     #[account(
         init_if_needed,
         payer = seller,
         associated_token::mint = nft_mint,
         associated_token::authority = listing_account,
-        // Important: escrow account's authority is the listing PDA
+        // escrow account's authority is the listing PDA
         // This ensures the listing PDA can control the NFT transfer during a sale
     )]
     pub escrow_nft_account: Account<'info, TokenAccount>,
@@ -72,17 +71,14 @@ pub fn handler(
     price_lamports: u64,
     expires_at: Option<i64>,
 ) -> Result<()> {
-    // Get keys before any mutable borrows
     let ticket_key = ctx.accounts.ticket_account.key();
     let seller_key = ctx.accounts.seller.key();
     let current_time = Clock::get()?.unix_timestamp;
     
-    // Validate expiration time
     if let Some(expires) = expires_at {
         require!(expires > current_time, ErrorCode::InvalidInput);
     }
     
-    // Transfer NFT from seller to escrow
     let cpi_accounts = Transfer {
         from: ctx.accounts.seller_nft_account.to_account_info(),
         to: ctx.accounts.escrow_nft_account.to_account_info(),
@@ -97,7 +93,6 @@ pub fn handler(
     let ticket = &mut ctx.accounts.ticket_account;
     let listing = &mut ctx.accounts.listing_account;
     
-    // Create listing
     listing.ticket = ticket_key;
     listing.seller = seller_key;
     listing.price_lamports = price_lamports;
@@ -105,7 +100,6 @@ pub fn handler(
     listing.expires_at = expires_at;
     listing.bump = ctx.bumps.listing_account;
     
-    // Mark ticket as listed
     ticket.is_listed = true;
     
     Ok(())

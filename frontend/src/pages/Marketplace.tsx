@@ -14,7 +14,7 @@ export default function Marketplace() {
       currentPriceUsdc: 120,
       seller: "CryptoMusicFan",
       rarity: "Rare",
-      image: "🎫",
+      image: "",
       verified: true
     },
     {

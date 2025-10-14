@@ -6,25 +6,22 @@ use crate::state::EventAccount;
 
 #[derive(Accounts)]
 #[instruction(event_id: u64, name: String, start_ts: i64, end_ts: i64, ticket_supply: u32, cover_image_url: String)]
-pub struct CreateEventCtx<'info> {
+pub struct UpdateEventCtx<'info> {
     #[account(mut)]
-    pub organizer: Signer<'info>,
+    pub authority: Signer<'info>,
     
     /// PDA for the event: [PROGRAM_SEED, EVENT_SEED, event_id_le_bytes]
     #[account(
-        init,
-        payer = organizer,
-        space = 8 + EventAccount::INIT_SPACE,
+        mut,
         seeds = [PROGRAM_SEED.as_bytes(), EVENT_SEED.as_bytes(), &event_id.to_le_bytes()],
-        bump
+        bump = event_account.bump,
+        constraint = event_account.authority == authority.key() @ ErrorCode::Unauthorized
     )]
     pub event_account: Account<'info, EventAccount>,
-    
-    pub system_program: Program<'info, System>,
 }
 
 pub fn handler(
-    ctx: Context<CreateEventCtx>,
+    ctx: Context<UpdateEventCtx>,
     event_id: u64,
     name: String,
     start_ts: i64,
@@ -38,46 +35,43 @@ pub fn handler(
     require!(ticket_supply > 0, ErrorCode::InvalidInput);
     require!(cover_image_url.len() <= 200, ErrorCode::InvalidInput);
 
-    // // Validate that the event is in the future
-    // let current_time = Clock::get()?.unix_timestamp;
-    // require!(start_ts > current_time, ErrorCode::InvalidInput); - only for testing purposes
+    // Check if event has already started
+    let current_time = Clock::get()?.unix_timestamp;
+    require!(current_time < ctx.accounts.event_account.start_ts, ErrorCode::EventAlreadyStarted);
 
-    let event_account_key = ctx.accounts.event_account.key();
-    let organizer_key = ctx.accounts.organizer.key();
+    // Check if tickets have been sold
+    require!(ctx.accounts.event_account.tickets_sold == 0, ErrorCode::TicketsAlreadySold);
 
     let event_account = &mut ctx.accounts.event_account;
 
-    // Set the organizer as the event authority
-    event_account.authority = organizer_key;
-    event_account.event_id = event_id;
+    // Update event details
     event_account.name = name.clone();
     event_account.start_ts = start_ts;
     event_account.end_ts = end_ts;
-    event_account.tickets_sold = 0;
     event_account.ticket_supply = ticket_supply;
-    event_account.version = 1; // Current version with ticket_supply field
     event_account.cover_image_url = cover_image_url;
-    event_account.bump = ctx.bumps.event_account;
-    
+
     // Emit event for indexing
-    emit!(EventCreated {
+    emit!(EventUpdated {
         event_id,
-        organizer: organizer_key,
-        event_account: event_account_key,
+        authority: ctx.accounts.authority.key(),
+        event_account: event_account.key(),
         name,
         start_ts,
         end_ts,
+        ticket_supply,
     });
     
     Ok(())
 }
 
 #[event]
-pub struct EventCreated {
+pub struct EventUpdated {
     pub event_id: u64,
-    pub organizer: Pubkey,
+    pub authority: Pubkey,
     pub event_account: Pubkey,
     pub name: String,
     pub start_ts: i64,
     pub end_ts: i64,
+    pub ticket_supply: u32,
 }

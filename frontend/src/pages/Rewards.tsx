@@ -265,7 +265,7 @@ export default function Rewards() {
                 </div>
                 <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border border-border/50">
                   <div className="flex items-center gap-3">
-                    <div className="text-2xl">🎫</div>
+                    <div className="text-2xl"></div>
                     <div>
                       <p className="text-sm font-medium">First Event Attended</p>
                       <p className="text-xs text-muted-foreground">They join their first experience</p>

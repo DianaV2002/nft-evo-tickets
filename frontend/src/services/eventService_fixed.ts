@@ -150,24 +150,6 @@ export async function fetchAllEvents(
           console.log(`Account ${account.pubkey.toString()} is an old event, using default ticket_supply=100`);
         }
 
-        // Try to read version (1 byte) - default to 0 if not present
-        let version = 0;
-        if (offset + 1 <= dataLength) {
-          version = data.readUInt8(offset);
-          offset += 1;
-        }
-
-        // Try to read cover_image_url (String with length prefix)
-        let coverImageUrl = "";
-        if (offset + 4 <= dataLength) {
-          const coverImageUrlLength = data.readUInt32LE(offset);
-          offset += 4;
-          if (coverImageUrlLength > 0 && coverImageUrlLength <= 200 && offset + coverImageUrlLength <= dataLength) {
-            coverImageUrl = data.slice(offset, offset + coverImageUrlLength).toString("utf-8");
-            offset += coverImageUrlLength;
-          }
-        }
-
         // Check if we have enough data for bump (1 byte)
         if (offset + 1 > dataLength) {
           console.warn(`Account ${account.pubkey.toString()} insufficient data for bump at offset ${offset}`);
@@ -185,8 +167,8 @@ export async function fetchAllEvents(
           endTs: Number(endTs),
           ticketsSold,
           ticketSupply,
-          version,
-          coverImageUrl,
+          version: 1,
+          coverImageUrl: "",
           bump,
         };
         
@@ -399,24 +381,6 @@ export async function fetchEventsByKeys(
           offset += 4;
         }
 
-        // Try to read version (1 byte) - default to 0 if not present
-        let version = 0;
-        if (offset + 1 <= data.length) {
-          version = data.readUInt8(offset);
-          offset += 1;
-        }
-
-        // Try to read cover_image_url (String with length prefix)
-        let coverImageUrl = "";
-        if (offset + 4 <= data.length) {
-          const coverImageUrlLength = data.readUInt32LE(offset);
-          offset += 4;
-          if (coverImageUrlLength > 0 && coverImageUrlLength <= 200 && offset + coverImageUrlLength <= data.length) {
-            coverImageUrl = data.slice(offset, offset + coverImageUrlLength).toString("utf-8");
-            offset += coverImageUrlLength;
-          }
-        }
-
         // Check if we have enough data for bump (1 byte)
         if (offset + 1 > data.length) {
           console.warn(`Account ${eventKey} insufficient data for bump at offset ${offset}`);
@@ -434,8 +398,8 @@ export async function fetchEventsByKeys(
           endTs: Number(endTs),
           ticketsSold,
           ticketSupply,
-          version,
-          coverImageUrl,
+          version: 1,
+          coverImageUrl: "",
           bump,
         };
 
@@ -523,12 +487,14 @@ export async function deleteEvent(
 
   const { Program, AnchorProvider, BN, web3 } = await import("@coral-xyz/anchor");
 
+  // Create provider
   const provider = new AnchorProvider(
     connection,
     wallet,
     { commitment: "confirmed" }
   );
 
+  // Create program instance
   const program = new Program(idl as any, provider);
 
   console.log("Deleting event:", {
@@ -537,6 +503,7 @@ export async function deleteEvent(
   });
 
   try {
+    // Call delete_event instruction
     const tx = await program.methods
       .deleteEvent()
       .accounts({
@@ -603,6 +570,7 @@ export async function createEvent(
     eventPda: eventPda.toString(),
   });
 
+  // Check if an event with the same name and organizer already exists
   try {
     const existingEvents = await fetchAllEvents(connection, wallet.publicKey);
     const duplicateEvent = existingEvents.find(event => 
@@ -615,6 +583,7 @@ export async function createEvent(
     }
   } catch (error) {
     console.warn("Could not check for duplicate events:", error);
+    // Continue with event creation
   }
 
   try {
@@ -624,8 +593,7 @@ export async function createEvent(
         params.name,
         startTs,
         endTs,
-        new BN(params.ticketSupply),
-        coverImageUrl || ""
+        new BN(params.capacity)
       )
       .accounts({
         organizer: wallet.publicKey,
@@ -659,8 +627,7 @@ export async function createEvent(
           params.name,
           startTs,
           endTs,
-          new BN(params.ticketSupply),
-          coverImageUrl || ""
+          new BN(params.capacity)
         )
         .accounts({
           organizer: wallet.publicKey,
@@ -673,57 +640,6 @@ export async function createEvent(
       return tx;
     }
 
-    throw error;
-  }
-}
-
-export async function updateEvent(
-  connection: web3.Connection,
-  wallet: any,
-  eventId: number,
-  params: {
-    name: string
-    startTs: number
-    endTs: number
-    ticketSupply: number
-    coverImageUrl: string
-  }
-): Promise<string> {
-  try {
-    const program = new Program(idl.default as any, new AnchorProvider(connection, wallet as any, { commitment: 'confirmed' })) as any
-
-    const eventIdBN = new BN(eventId)
-    const [eventPda] = web3.PublicKey.findProgramAddressSync(
-      [
-        Buffer.from("nft-evo-tickets"),
-        Buffer.from("event"),
-        eventIdBN.toArrayLike(Buffer, "le", 8),
-      ],
-      PROGRAM_ID
-    )
-
-    const startTs = new BN(params.startTs)
-    const endTs = new BN(params.endTs)
-
-    const tx = await program.methods
-      .updateEvent(
-        eventIdBN,
-        params.name,
-        startTs,
-        endTs,
-        new BN(params.ticketSupply),
-        params.coverImageUrl
-      )
-      .accounts({
-        authority: wallet.publicKey,
-        eventAccount: eventPda,
-      })
-      .rpc();
-
-    console.log("Event updated! Transaction:", tx);
-    return tx;
-  } catch (error: any) {
-    console.error("Error updating event:", error);
     throw error;
   }
 }

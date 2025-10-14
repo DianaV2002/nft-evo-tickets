@@ -12,6 +12,7 @@ import Marketplace from "./pages/Marketplace";
 import Tickets from "./pages/Tickets";
 import CreateEvent from "./pages/CreateEvent";
 import MyEvents from "./pages/MyEvents";
+import Scanner from "./pages/Scanner";
 import Community from "./pages/Community";
 import Profile from "./pages/Profile";
 import Rewards from "./pages/Rewards";
@@ -46,6 +47,7 @@ function AppRoutes() {
             <Route path="/rewards" element={<Rewards />} />
             <Route path="/create-event" element={<CreateEvent />} />
             <Route path="/my-events" element={<MyEvents />} />
+            <Route path="/scanner" element={<Scanner />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <AIChatbot />

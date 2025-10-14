@@ -10,7 +10,7 @@ const PROGRAM_ID = new PublicKey('6mz15gSnFGTWzjHsveE8aFpVTKjdiLkVfQKtvFf1CGdc')
 const CLUSTER = 'localnet';
 
 async function main() {
-  console.log('🎫 Creating Ticket in QR Stage\n');
+  console.log(' Creating Ticket in QR Stage\n');
 
   // Setup connection and provider
   const rpcUrl = CLUSTER === 'localnet' ? 'http://localhost:8899' : `https://api.${CLUSTER}.solana.com`;

@@ -10,7 +10,8 @@ import {
   TrendingUp,
   LogOut,
   Users,
-  Gift
+  Gift,
+  QrCode
 } from "lucide-react"
 import { useWallet } from "@solana/wallet-adapter-react"
 import logo from "@/assets/logo.png";
@@ -40,6 +41,7 @@ const mainItems = [
 const organizerItems = [
   { title: "Create Event", url: "/create-event", icon: Plus },
   { title: "My Events", url: "/my-events", icon: Calendar },
+  { title: "Scanner", url: "/scanner", icon: QrCode },
 ]
 
 export function EvoSidebar() {

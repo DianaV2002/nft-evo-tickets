@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::program::invoke_signed;
+use anchor_lang::solana_program::sysvar::clock::Clock;
 use anchor_spl::{
     associated_token::AssociatedToken,
     token::{self, Mint, Token, TokenAccount},
@@ -40,11 +41,10 @@ pub struct MintTicketCtx<'info> {
     )]
     pub ticket_account: Account<'info, TicketAccount>,
 
-    /// Future ticket owner (no signature required)
-    /// CHECK: This is not checked in the handler
+    /// CHECK: This is not checked in the handler - future ticket owner
     pub owner: UncheckedAccount<'info>,
 
-    /// The mint account for the NFT ticket. It will be initialized by the program.
+    /// The mint account for the NFT ticket
     #[account(
         init,
         payer = authority,
@@ -63,8 +63,7 @@ pub struct MintTicketCtx<'info> {
     pub nft_mint: Account<'info, Mint>,
     
 
-    /// CHECK: Metaplex Metadata PDA for the mint. We don't deserialize; address is derived off-chain/on client
-    /// and verified here by comparing with expected PDA if desired.
+    /// CHECK: Metaplex Metadata PDA for the mint
     #[account(mut)]
     pub metadata: UncheckedAccount<'info>,
 
@@ -72,8 +71,7 @@ pub struct MintTicketCtx<'info> {
     #[account(mut)]
     pub master_edition: UncheckedAccount<'info>,
 
-    /// CHECK: Owner's ATA for `nft_mint`. We create it in the handler (after the mint is initialized)
-    /// using the Associated Token Program and require it matches the canonical PDA. We don't deserialize it.
+    /// CHECK: Owner's ATA for nft_mint
     #[account(
         init_if_needed,
         payer = authority,
@@ -97,7 +95,7 @@ pub struct MintTicketCtx<'info> {
 pub fn handler(
     ctx: Context<MintTicketCtx>,
     seat: Option<String>,
-    metadata_uri_override: Option<String>, // NEW
+    metadata_uri_override: Option<String>,
 ) -> Result<()> {
     let _event = &ctx.accounts.event_account;
     let nft_mint = &ctx.accounts.nft_mint;
@@ -132,11 +130,23 @@ pub fn handler(
         1,
     )?;
 
-    // Set up ticket account
+    // Check if event has started to determine initial ticket stage
+    let current_time = Clock::get()?.unix_timestamp;
+    let event_has_started = current_time >= _event.start_ts;
+    
     let ticket = &mut ctx.accounts.ticket_account;
     ticket.event = event_key;
     ticket.owner = owner_key;
-    ticket.stage = TicketStage::Prestige;
+    
+    // Set ticket stage based on event timing
+    if event_has_started {
+        ticket.stage = TicketStage::Qr;
+        msg!("Event has started, ticket minted in QR stage");
+    } else {
+        ticket.stage = TicketStage::Prestige;
+        msg!("Event has not started, ticket minted in Prestige stage");
+    }
+    
     ticket.seat = seat.map(|mut s| { s.truncate(32); s });
     ticket.nft_mint = ctx.accounts.nft_mint.key();
     ticket.is_listed = false;
@@ -165,7 +175,6 @@ pub fn handler(
         ticket.stage.get_http_metadata_uri(&_event.name, ticket.seat.as_ref())
     };
 
-    // Enforce Metaplex length limits
     let mut name = ticket.stage.get_name(&_event.name, ticket.seat.as_ref());
     name = clamp_bytes(name, 32);
 
@@ -212,7 +221,6 @@ pub fn handler(
 
     invoke_signed(&metadat_ix, metadata_acct_infos, signer_seeds)?;
 
-    // Create Master Edition
     let master_edition_args = CreateMasterEditionV3InstructionArgs {
         max_supply: Some(0),
     };
