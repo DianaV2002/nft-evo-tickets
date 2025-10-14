@@ -531,44 +531,22 @@ export async function buyTicket(
   const program = new Program(idl as any, provider);
 
   try {
-    // Derive associated token accounts
-    const escrowNftAccount = await getAssociatedTokenAddress(
-      nftMintPublicKey,
-      listingPublicKey,
-      true // allowOwnerOffCurve for PDA
-    );
-
-    const buyerNftAccount = await getAssociatedTokenAddress(
-      nftMintPublicKey,
-      wallet.publicKey
-    );
-
     console.log("Buying ticket:", {
       buyer: wallet.publicKey.toString(),
       ticketAccount: ticketPublicKey.toString(),
-      listingAccount: listingPublicKey.toString(),
       eventAccount: eventPublicKey.toString(),
       seller: sellerPublicKey.toString(),
       nftMint: nftMintPublicKey.toString(),
-      escrowNftAccount: escrowNftAccount.toString(),
-      buyerNftAccount: buyerNftAccount.toString(),
     });
 
     const tx = await program.methods
-      .buyTicket()
+      .buyEventTicket()
       .accounts({
         buyer: wallet.publicKey,
         ticketAccount: ticketPublicKey,
-        listingAccount: listingPublicKey,
         eventAccount: eventPublicKey,
         seller: sellerPublicKey,
         nftMint: nftMintPublicKey,
-        escrowNftAccount,
-        buyerNftAccount,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        rent: web3.SYSVAR_RENT_PUBKEY,
       })
       .rpc();
 
