@@ -23,7 +23,7 @@
   },
 
   "postCreateCommand": "npm install",
-  "postStartCommand": "npm start",
+  "postStartCommand": "npm start > /tmp/npm-start.log 2>&1 & sleep 60 && gh codespace ports visibility 8080:public -c $CODESPACE_NAME || true",
 
   "forwardPorts": [3000, 8001, 8080],
 
