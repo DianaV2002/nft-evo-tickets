@@ -8,35 +8,35 @@ export default function Marketplace() {
   const tickets = [
     {
       id: 1,
-      eventName: "Neon Nights Festival",
-      ticketType: "VIP Pass",
+      eventName: "Sacred Forest Retreat",
+      ticketType: "Premium Wellness Pass",
       originalPriceUsdc: 80,
       currentPriceUsdc: 120,
-      seller: "CryptoMusicFan",
+      seller: "NatureLover",
       rarity: "Rare",
-      image: "",
+      image: "🌳",
       verified: true
     },
     {
       id: 2,
-      eventName: "Digital Dreams",
+      eventName: "Ocean Meditation Journey",
       ticketType: "General Admission",
       originalPriceUsdc: 30,
       currentPriceUsdc: 40,
-      seller: "TechGuru2024",
+      seller: "ZenSeeker2024",
       rarity: "Common",
-      image: "🎟️",
+      image: "🌊",
       verified: true
     },
     {
       id: 3,
-      eventName: "Cyberpunk Exhibition",
-      ticketType: "Artist Pass",
+      eventName: "Mountain Sunrise Yoga",
+      ticketType: "Early Bird Pass",
       originalPriceUsdc: 50,
       currentPriceUsdc: 70,
-      seller: "ArtLover99",
+      seller: "YogaWarrior",
       rarity: "Epic",
-      image: "🎨",
+      image: "🏔️",
       verified: false
     }
   ]
@@ -56,13 +56,13 @@ export default function Marketplace() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
         <div>
-          <h1 className="text-4xl font-bold gradient-text">NFT Marketplace</h1>
+          <h1 className="text-4xl font-bold gradient-text">Wellness Ticket Marketplace</h1>
           <p className="text-muted-foreground mt-2">
-            Buy, sell, and trade event tickets as NFTs
+            Discover and collect eco-friendly retreat and wellness experience tickets
           </p>
         </div>
-        
-  
+
+
       </div>
 
       {/* Marketplace Stats */}
@@ -96,16 +96,16 @@ export default function Marketplace() {
       {/* Ticket Listings - List View */}
       <Card className="glass-card">
         <CardHeader>
-          <CardTitle>Available Tickets</CardTitle>
-          <CardDescription>Browse and purchase event tickets</CardDescription>
+          <CardTitle>Available Wellness Experiences</CardTitle>
+          <CardDescription>Browse and reserve your transformative journey</CardDescription>
         </CardHeader>
         
         <CardContent>
           <div className="space-y-4">
             {tickets.map((ticket) => (
-              <div 
-                key={ticket.id} 
-                className="flex items-center justify-between p-4 rounded-lg bg-muted/20 hover:bg-muted/30 transition-all duration-300 spatial-hover group"
+              <div
+                key={ticket.id}
+                className="flex items-center justify-between p-4 rounded-lg bg-muted/20 hover:bg-muted/30 transition-all duration-300 group"
               >
                 <div className="flex items-center space-x-4">
                   <div className="text-2xl">{ticket.image}</div>
@@ -159,18 +159,18 @@ export default function Marketplace() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <TrendingUp className="h-5 w-5 mr-2 text-primary" />
-            Trending Collections
+            Popular Retreat Categories
           </CardTitle>
           <CardDescription>
-            Most popular ticket collections this week
+            Most sought-after wellness experiences this week
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {['Music Festivals', 'Tech Conferences', 'Art Exhibitions'].map((collection, index) => (
+            {['Meditation Retreats', 'Yoga & Movement', 'Nature Immersion'].map((collection, index) => (
               <div key={index} className="p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors spatial-hover">
                 <h4 className="font-medium mb-2">{collection}</h4>
-                <p className="text-sm text-muted-foreground">Floor: 0.3 SOL</p>
+                <p className="text-sm text-muted-foreground">Floor: 30 USDT</p>
                 <p className="text-sm text-accent">+15% (24h)</p>
               </div>
             ))}
