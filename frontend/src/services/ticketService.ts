@@ -311,7 +311,11 @@ export async function buyEventTicket(
   const provider = new AnchorProvider(
     connection,
     wallet,
-    { commitment: "confirmed" }
+    {
+      commitment: "confirmed",
+      skipPreflight: false,
+      preflightCommitment: "confirmed"
+    }
   );
 
   const program = new Program(idl as any, provider);
@@ -319,11 +323,9 @@ export async function buyEventTicket(
   try {
     const buyer = wallet.publicKey;
 
-    // Get event data to find the organizer
     const eventAccount = await program.account.eventAccount.fetch(eventPublicKey);
     const organizer = eventAccount.authority as PublicKey;
 
-    // Generate a unique ticket ID using timestamp + random
     const ticketId = Date.now() + Math.floor(Math.random() * 1000000);
     const ticketIdBuffer = Buffer.alloc(8);
     ticketIdBuffer.writeBigUInt64LE(BigInt(ticketId));
@@ -379,7 +381,7 @@ export async function buyEventTicket(
       buyer
     );
 
-    console.log("Purchasing ticket:", {
+    console.log("[TicketService] Purchasing ticket:", {
       buyer: buyer.toString(),
       organizer: organizer.toString(),
       eventAccount: eventPublicKey.toString(),
@@ -389,7 +391,8 @@ export async function buyEventTicket(
       price: `${ticketPriceLamports / 1e9} SOL`,
     });
 
-    // Call buy_event_ticket instruction
+    const latestBlockhash = await connection.getLatestBlockhash("confirmed");
+
     const tx = await program.methods
       .buyEventTicket(new BN(ticketPriceLamports), seat || null, new BN(ticketId))
       .accounts({
@@ -407,9 +410,18 @@ export async function buyEventTicket(
         tokenMetadataProgram: MPL_TOKEN_METADATA_PROGRAM_ID,
         rent: web3.SYSVAR_RENT_PUBKEY,
       })
-      .rpc();
+      .rpc({
+        skipPreflight: false,
+        maxRetries: 3,
+      });
 
-    console.log("Ticket purchased! Transaction:", tx);
+    await connection.confirmTransaction({
+      signature: tx,
+      blockhash: latestBlockhash.blockhash,
+      lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+    }, "confirmed");
+
+    console.log("[TicketService] Ticket purchased successfully:", tx);
     return tx;
   } catch (error: any) {
     console.error("Error purchasing ticket:", error);

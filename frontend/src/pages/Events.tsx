@@ -82,24 +82,24 @@ export default function Events() {
   }
 
   const handleConfirmPurchase = async () => {
-    if (!selectedEvent) return
+    if (!selectedEvent || buyingTicket) return
 
     try {
       setBuyingTicket(true)
       setShowPurchaseConfirmation(false)
-      toast.loading("Purchasing your ticket...")
 
-      // Buy a ticket from event
+      const toastId = toast.loading("Purchasing your ticket...")
+
       const ticketPriceLamports = ticketPrice * LAMPORTS_PER_SOL;
       const tx = await buyEventTicket(
         connection,
         wallet,
         new PublicKey(selectedEvent.publicKey),
         ticketPriceLamports,
-        undefined // seat number (optional)
+        undefined
       )
 
-      toast.dismiss()
+      toast.dismiss(toastId)
       toast.success("Ticket purchased successfully!")
       
       // Create Solana Explorer link for devnet
