@@ -16,6 +16,7 @@ import { getImageDisplayUrl } from "@/services/imageService"
 import { useEventStatusUpdate } from "@/hooks/useEventStatusUpdate"
 import { PublicKey } from "@solana/web3.js"
 import { useToast } from "@/hooks/use-toast"
+import EditEventDialog from "@/components/EditEventDialog"
 
 export default function MyEvents() {
   const { connection } = useConnection()
@@ -28,8 +29,9 @@ export default function MyEvents() {
   const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<EventData | null>(null)
 
-  // Use the status update hook
   const { lastUpdate, statusChanges, hasRecentChanges } = useEventStatusUpdate(events)
 
   useEffect(() => {
@@ -47,7 +49,6 @@ export default function MyEvents() {
         setLoading(true)
         setError(null)
         console.log("Fetching events for wallet:", wallet.publicKey.toString())
-        // Fetch events created by this wallet
         const fetchedEvents = await fetchAllEvents(connection, wallet.publicKey)
         console.log("Fetched events:", fetchedEvents.length)
         setEvents(fetchedEvents)
@@ -133,6 +134,20 @@ export default function MyEvents() {
       })
     } finally {
       setDeletingEventId(null)
+    }
+  }
+
+  const handleEditEvent = (event: EventData) => {
+    console.log("Edit event clicked:", event.eventId)
+    setEditingEvent(event)
+    setEditDialogOpen(true)
+  }
+
+  const handleEventUpdated = async () => {
+    // Reload events after update
+    if (wallet.publicKey) {
+      const fetchedEvents = await fetchAllEvents(connection, wallet.publicKey)
+      setEvents(fetchedEvents)
     }
   }
 
@@ -381,7 +396,7 @@ export default function MyEvents() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="glass-card">
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditEvent(event)}>
                           <Edit className="h-4 w-4 mr-2" />
                           Edit Event
                         </DropdownMenuItem>
@@ -552,6 +567,14 @@ export default function MyEvents() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Event Dialog */}
+      <EditEventDialog
+        isOpen={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        event={editingEvent}
+        onEventUpdated={handleEventUpdated}
+      />
     </div>
   )
 }

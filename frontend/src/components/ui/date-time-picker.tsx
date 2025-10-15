@@ -34,9 +34,16 @@ export function DateTimePicker({
   React.useEffect(() => {
     if (date) {
       setSelectedDate(date)
-      setSelectedTime(format(date, "HH:mm"))
+      const timeString = format(date, "HH:mm")
+      setSelectedTime(timeString)
       setDateInputValue(format(date, "dd/MM/yyyy"))
-      setTimeInputValue(format(date, "HH:mm"))
+      setTimeInputValue(timeString)
+    } else {
+      // Reset all values when date is undefined
+      setSelectedDate(undefined)
+      setSelectedTime("")
+      setDateInputValue("")
+      setTimeInputValue("")
     }
   }, [date])
 
@@ -63,7 +70,6 @@ export function DateTimePicker({
     const value = e.target.value
     setDateInputValue(value)
 
-    // Try to parse various date formats (DD/MM/YYYY preferred)
     const formats = ["dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "d-M-yyyy", "yyyy-MM-dd"]
     let parsedDate: Date | undefined
 
@@ -75,7 +81,6 @@ export function DateTimePicker({
           break
         }
       } catch (e) {
-        // Try next format
       }
     }
 
@@ -97,11 +102,10 @@ export function DateTimePicker({
       const combinedDate = new Date(selectedDate)
       combinedDate.setHours(parseInt(hours), parseInt(minutes))
 
-      // Check if the selected time is in the past (only for today)
       const now = new Date()
       const isToday = selectedDate.toDateString() === now.toDateString()
       if (isToday && combinedDate <= now) {
-        // Don't allow past times for today
+        // Don't allow past times for toda
         return
       }
 
@@ -133,6 +137,9 @@ export function DateTimePicker({
 
         onDateChange?.(combinedDate)
       }
+    } else if (value === "") {
+      // Allow clearing the time
+      setSelectedTime("")
     }
   }
 
@@ -172,7 +179,13 @@ export function DateTimePicker({
         </PopoverContent>
       </Popover>
 
-      <Popover open={isTimePickerOpen} onOpenChange={setIsTimePickerOpen}>
+      <Popover open={isTimePickerOpen} onOpenChange={(open) => {
+        setIsTimePickerOpen(open)
+        // Ensure time picker reflects current time when opening
+        if (open && timeInputValue && !selectedTime) {
+          setSelectedTime(timeInputValue)
+        }
+      }}>
         <PopoverTrigger asChild>
           <div className="relative w-32">
             <Input
@@ -193,7 +206,6 @@ export function DateTimePicker({
                 const minute = (j * 15).toString().padStart(2, "0")
                 const timeValue = `${hour}:${minute}`
 
-                // Filter out past times if today is selected
                 const now = new Date()
                 const isToday = selectedDate && selectedDate.toDateString() === now.toDateString()
                 if (isToday) {
