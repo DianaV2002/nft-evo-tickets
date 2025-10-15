@@ -2,8 +2,6 @@
 
 <img src="./frontend/src/assets/logo.png" alt="NFT Evo Tickets Logo" width="200"/>
 
-# 🌿 NFT Evo Tickets
-
 > A decentralized wellness retreat ticketing platform — fully on-chain, eco-friendly, and built for mindful experiences.
 
 [![Pitch Deck](https://img.shields.io/badge/📊_Pitch_Deck-View_Presentation-FF6B6B?style=for-the-badge)](https://www.canva.com/design/DAG1MwQ_yz4/XBf79nYdN4_fbhyXQ_ZFlA/edit)
@@ -20,7 +18,7 @@
 
 ## 🌱 Overview
 
-**NFT Evo Tickets** is a blockchain-based ticketing system designed specifically for wellness retreats, yoga experiences, and eco-friendly events. Built on Solana, it combines the security of NFT ownership with a gamified journey that encourages mindful participation and environmental consciousness.
+** Evo Tickets** is a blockchain-based ticketing system designed specifically for wellness retreats, yoga experiences, and eco-friendly events. Built on Solana, it combines the security of NFT ownership with a gamified journey that encourages mindful participation and environmental consciousness.
 
 Traditional paper tickets harm the environment. Digital platforms lack ownership and transferability. NFT Evo Tickets solves both problems by creating verifiable, transferable, and sustainable event tickets that evolve with the attendee's journey.
 
@@ -96,42 +94,60 @@ npm start
 
 ## ⚙️ Environment Configuration
 
-Create `.env` files in the appropriate directories. Example files are provided as `.env.example`.
+Copy the example files and fill in your values:
+
+```bash
+# Copy root .env.example
+cp .env.example .env
+
+# Copy frontend .env.example
+cp frontend/.env.example frontend/.env
+```
 
 ### 📁 Root Directory - `.env`
 
-Configuration for the main server and level system backend.
+Configuration for the main server, Solana, and level system backend.
 
 ```env
-# Server Configuration
-PORT=3000
-NODE_ENV=development
+# Bundlr/Arweave Configuration (for permanent storage)
+BUNDLR_SOLANA_SECRET_KEY_B58=your_bundlr_secret_key_here
+
+# Pinata IPFS Configuration
+PINATA_JWT=your_pinata_jwt_token_here
+PINATA_GATEWAY=your-gateway.mypinata.cloud
+
+# Anchor Configuration
+ANCHOR_PROVIDER_URL=https://api.devnet.solana.com
+ANCHOR_WALLET=/path/to/your/solana/wallet.json
 
 # Solana Configuration
 SOLANA_CLUSTER=devnet
-PROGRAM_ID=your_program_id_here
 RPC_URL=https://api.devnet.solana.com
-
-# Security
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+PROGRAM_ID=your_deployed_program_id_here
 
 # Level System Configuration
 LEVEL_PORT=3001
 LEVEL_DB_PATH=./backend/level-system/database/level-system.db
+
+# Security (CORS)
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:8080,http://localhost:3001
 ```
 
 **Variables Explained:**
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `PORT` | Main application server port | ✅ Yes |
-| `NODE_ENV` | Environment mode (development/production) | ✅ Yes |
+| `BUNDLR_SOLANA_SECRET_KEY_B58` | Bundlr/Arweave secret key for permanent storage | ⚠️ Optional |
+| `PINATA_JWT` | Pinata API authentication token for IPFS | ✅ Yes |
+| `PINATA_GATEWAY` | Your Pinata gateway domain | ✅ Yes |
+| `ANCHOR_PROVIDER_URL` | Solana RPC endpoint for Anchor | ✅ Yes |
+| `ANCHOR_WALLET` | Path to your Solana wallet keypair file | ✅ Yes |
 | `SOLANA_CLUSTER` | Solana network (devnet/mainnet-beta) | ✅ Yes |
-| `PROGRAM_ID` | Your deployed Anchor program address | ✅ Yes |
 | `RPC_URL` | Solana RPC endpoint URL | ✅ Yes |
-| `ALLOWED_ORIGINS` | CORS whitelist for API access | ⚠️ Production only |
+| `PROGRAM_ID` | Your deployed Anchor program address | ✅ Yes |
 | `LEVEL_PORT` | Port for level system API server | ✅ Yes |
 | `LEVEL_DB_PATH` | SQLite database file path | ✅ Yes |
+| `ALLOWED_ORIGINS` | CORS whitelist for API access | ✅ Yes |
 
 ---
 
@@ -164,11 +180,17 @@ VITE_PROGRAM_ID=your_program_id_here
 
 ---
 
-**🔑 Getting Resources:**
+**🔑 Getting API Keys & Resources:**
 
-- **Custom RPC Endpoints**: For better rate limits and performance, consider [QuickNode](https://quicknode.com) or [Helius](https://helius.dev)
+- **Pinata IPFS**: Sign up at [pinata.cloud](https://pinata.cloud) for IPFS storage (free tier available)
+- **Bundlr**: Optional - for permanent Arweave storage at [bundlr.network](https://bundlr.network)
+- **Custom RPC**: For better rate limits, consider:
+  - [Alchemy](https://alchemy.com) - Solana RPC provider
+  - [QuickNode](https://quicknode.com) - High-performance RPC
+  - [Helius](https://helius.dev) - Developer-focused RPC
 - **Solana Devnet**: Free to use at `https://api.devnet.solana.com`
-- **Program ID**: Obtain after running `anchor deploy`
+- **Program ID**: Obtain after running `anchor deploy --provider.cluster devnet`
+- **Wallet Keypair**: Generate with `solana-keygen new` or use existing wallet at `~/.config/solana/id.json`
 
 ---
 
