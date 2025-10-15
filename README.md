@@ -2,17 +2,12 @@
 
 <img src="./frontend/src/assets/logo.png" alt="NFT Evo Tickets Logo" width="200"/>
 
-> A decentralized wellness retreat ticketing platform — fully on-chain, eco-friendly, and built for mindful experiences.
+A decentralized wellness retreat ticketing platform — fully on-chain, eco-friendly, and built for mindful experiences.
 
 [![Pitch Deck](https://img.shields.io/badge/📊_Pitch_Deck-View_Presentation-FF6B6B?style=for-the-badge)](https://www.canva.com/design/DAG1MwQ_yz4/XBf79nYdN4_fbhyXQ_ZFlA/edit)
 
 </div>
 
-![Solana](https://img.shields.io/badge/Solana-14F195?style=for-the-badge&logo=solana&logoColor=white)
-![Anchor](https://img.shields.io/badge/Anchor-6F4FF2?style=for-the-badge&logo=anchor&logoColor=white)
-![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
 
 ---
 
@@ -25,6 +20,13 @@ Traditional paper tickets harm the environment. Digital platforms lack ownership
 ---
 
 ## 🛠️ Tech Stack
+
+![Solana](https://img.shields.io/badge/Solana-14F195?style=for-the-badge&logo=solana&logoColor=white)
+![Anchor](https://img.shields.io/badge/Anchor-6F4FF2?style=for-the-badge&logo=anchor&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
