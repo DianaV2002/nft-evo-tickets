@@ -42,15 +42,15 @@ export interface ListingData {
 }
 
 /**
- * Fetch all tickets owned by a specific user
+ * Fetch all tickets owned by a specific user (including all versions)
  */
 export async function fetchUserTickets(
   connection: Connection,
   ownerPublicKey: PublicKey
 ): Promise<TicketData[]> {
   try {
-    console.log(" Fetching tickets for owner:", ownerPublicKey.toBase58());
-    console.log(" Program ID:", PROGRAM_ID.toBase58());
+    console.log("🎫 Fetching tickets for owner:", ownerPublicKey.toBase58());
+    console.log("📦 Program ID:", PROGRAM_ID.toBase58());
 
     const filters: any[] = [
       {
@@ -154,10 +154,53 @@ export async function fetchUserTickets(
       }
     }
 
-    console.log(" Successfully parsed tickets:", tickets);
+    console.log("✅ Successfully parsed tickets:", tickets);
     return tickets;
   } catch (error) {
     console.error("❌ Error fetching user tickets:", error);
+    return [];
+  }
+}
+
+/**
+ * Fetch only tickets for version 2 events (filtered by event version)
+ */
+export async function fetchUserTicketsV2Only(
+  connection: Connection,
+  ownerPublicKey: PublicKey
+): Promise<TicketData[]> {
+  try {
+    console.log("🎫 Fetching version 2 tickets for owner:", ownerPublicKey.toBase58());
+
+    // First, fetch all user tickets
+    const allTickets = await fetchUserTickets(connection, ownerPublicKey);
+
+    if (allTickets.length === 0) {
+      console.log("✅ No tickets found");
+      return [];
+    }
+
+    console.log(`📋 Found ${allTickets.length} total tickets, filtering by event version...`);
+
+    // Import fetchEventsByKeys to get event data
+    const { fetchEventsByKeys } = await import("./eventService");
+
+    // Get unique event public keys from tickets
+    const eventKeys = [...new Set(allTickets.map(ticket => ticket.event))];
+
+    // Fetch all event data
+    const eventsMap = await fetchEventsByKeys(connection, eventKeys);
+
+    // Filter tickets where the associated event has version === 2
+    const v2Tickets = allTickets.filter(ticket => {
+      const event = eventsMap.get(ticket.event);
+      return event && event.version === 2;
+    });
+
+    console.log(`✅ Filtered to ${v2Tickets.length} version 2 tickets`);
+    return v2Tickets;
+  } catch (error) {
+    console.error("❌ Error fetching version 2 tickets:", error);
     return [];
   }
 }

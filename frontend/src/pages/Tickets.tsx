@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { UsdcDisplay } from "@/components/ui/usdc-input"
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { useEffect, useState } from "react"
-import { fetchUserTickets, TicketData, getTicketStageName, getTicketRarity } from "@/services/ticketService"
+import { fetchUserTicketsV2Only, TicketData, getTicketStageName, getTicketRarity } from "@/services/ticketService"
 import { EventData, fetchEventsByKeys, formatEventDate, formatEventTime, getEventStatus } from "@/services/eventService"
 import { getImageDisplayUrl } from "@/services/imageService"
 import { generateQRCodeDataURL, generateQRCodeData, generateNFTExplorerQRData, generateScannerQRData, QRCodeData } from "@/services/qrCodeService"
@@ -70,8 +70,8 @@ export default function Tickets() {
         setLoading(true)
         setError(null)
 
-        console.log("Fetching user tickets...")
-        const userTickets = await fetchUserTickets(connection, wallet.publicKey)
+        console.log("Fetching user tickets (version 2 events only)...")
+        const userTickets = await fetchUserTicketsV2Only(connection, wallet.publicKey)
         console.log("Received tickets:", userTickets)
         setTickets(userTickets)
 

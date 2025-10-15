@@ -47,8 +47,8 @@ export default function Events() {
       setLoading(true)
       setError(null)
       const fetchedEvents = await fetchAllEvents(connection)
-      // Filter to only show events with version == 1
-      const filteredEvents = fetchedEvents.filter(event => event.version === 1)
+      // Filter to only show events with version == 2 (clean events)
+      const filteredEvents = fetchedEvents.filter(event => event.version === 2)
       console.log("Filtered events with cover images:", filteredEvents.map(e => ({
         name: e.name,
         coverImageUrl: e.coverImageUrl,

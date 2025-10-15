@@ -208,11 +208,14 @@ export async function fetchAllEvents(
     const now = Math.floor(Date.now() / 1000);
     const activeEvents = events.filter(event => event.endTs > now);
 
+    // Filter to show only version 2 events (clean events)
+    const version2Events = activeEvents.filter(event => event.version === 2);
+
     // Deduplicate events based on name, organizer, and timing
     // Keep the most recent event if there are duplicates
     const uniqueEvents = new Map<string, EventData>();
-    
-    activeEvents.forEach(event => {
+
+    version2Events.forEach(event => {
       const key = `${event.name}-${event.authority}`;
       const existing = uniqueEvents.get(key);
       if (!existing || event.startTs > existing.startTs) {
@@ -537,8 +540,11 @@ export async function deleteEvent(
   });
 
   try {
+    const { BN } = await import("@coral-xyz/anchor");
+    const eventIdBN = new BN(eventId);
+
     const tx = await program.methods
-      .deleteEvent()
+      .deleteEvent(eventIdBN)
       .accounts({
         authority: wallet.publicKey,
         eventAccount: eventPublicKey,
