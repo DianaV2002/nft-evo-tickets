@@ -2,27 +2,31 @@ import { Calendar, Ticket, TrendingUp, Users, Plus, Sparkles, Award, Gift, Share
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
-import { getUserLevel } from "@/services/levelService"
+import { getUserLevel, type UserLevel } from "@/services/levelService"
 import { useWallet } from "@solana/wallet-adapter-react"
 import meditationBanner from "@/assets/meditation-banner.jpg"
 
 export default function Dashboard() {
   const { publicKey } = useWallet();
   const [myPoints, setMyPoints] = useState<number | null>(null);
+  const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
 
   useEffect(() => {
     const fetchMyPoints = async () => {
       try {
         if (publicKey) {
           const walletAddress = publicKey.toBase58();
-          const userLevel = await getUserLevel(walletAddress);
-          setMyPoints(userLevel.totalPoints);
+          const level = await getUserLevel(walletAddress);
+          setMyPoints(level.totalPoints);
+          setUserLevel(level);
         } else {
           setMyPoints(0);
+          setUserLevel(null);
         }
       } catch (error) {
         console.error('Error fetching user points:', error);
         setMyPoints(0);
+        setUserLevel(null);
       }
     };
 
@@ -188,10 +192,10 @@ export default function Dashboard() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-primary/10 rounded-lg p-3 border border-primary/20 text-center">
                   <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
-                    <Leaf className="w-5 h-5 text-primary" />
+                    <span className="text-lg">{userLevel?.currentLevelData.emoji || '🌱'}</span>
                   </div>
-                  <p className="text-xs font-medium">Seed Planter</p>
-                  <p className="text-xs text-muted-foreground">5 referrals</p>
+                  <p className="text-xs font-medium">{userLevel?.currentLevelData.name || 'Seed Planter'}</p>
+                  <p className="text-xs text-muted-foreground">{myPoints || 0} points</p>
                 </div>
                 <div className="bg-secondary/10 rounded-lg p-3 border border-secondary/20 text-center">
                   <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-gradient-to-br from-secondary/30 to-secondary/10 flex items-center justify-center">
