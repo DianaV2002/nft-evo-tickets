@@ -1,0 +1,2351 @@
+{
+  "address": "6mz15gSnFGTWzjHsveE8aFpVTKjdiLkVfQKtvFf1CGdc",
+  "metadata": {
+    "name": "nft_evo_tickets",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "buy_event_ticket",
+      "discriminator": [
+        217,
+        134,
+        210,
+        43,
+        115,
+        176,
+        24,
+        72
+      ],
+      "accounts": [
+        {
+          "name": "buyer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "event_account",
+          "writable": true
+        },
+        {
+          "name": "organizer",
+          "docs": [
+            "The event organizer who will receive payment"
+          ],
+          "writable": true
+        },
+        {
+          "name": "ticket_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  102,
+                  116,
+                  45,
+                  101,
+                  118,
+                  111,
+                  45,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "event_account"
+              },
+              {
+                "kind": "account",
+                "path": "buyer"
+              },
+              {
+                "kind": "arg",
+                "path": "ticket_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nft_mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  102,
+                  116,
+                  45,
+                  101,
+                  118,
+                  111,
+                  45,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  102,
+                  116,
+                  45,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "event_account"
+              },
+              {
+                "kind": "account",
+                "path": "buyer"
+              },
+              {
+                "kind": "arg",
+                "path": "ticket_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "metadata",
+          "writable": true
+        },
+        {
+          "name": "master_edition",
+          "writable": true
+        },
+        {
+          "name": "buyer_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "buyer"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_metadata_program",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "ticket_price_lamports",
+          "type": "u64"
+        },
+        {
+          "name": "seat",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "ticket_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "buy_marketplace_ticket",
+      "discriminator": [
+        20,
+        127,
+        123,
+        126,
+        214,
+        128,
+        32,
+        26
+      ],
+      "accounts": [
+        {
+          "name": "buyer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "ticket_account",
+          "docs": [
+            "The ticket being purchased"
+          ],
+          "writable": true
+        },
+        {
+          "name": "listing_account",
+          "docs": [
+            "The listing for this ticket"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  102,
+                  116,
+                  45,
+                  101,
+                  118,
+                  111,
+                  45,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  105,
+                  115,
+                  116,
+                  105,
+                  110,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ticket_account"
+              }
+            ]
+          }
+        },
+        {
+          "name": "event_account",
+          "docs": [
+            "Event account for validation"
+          ]
+        },
+        {
+          "name": "seller",
+          "writable": true
+        },
+        {
+          "name": "nft_mint"
+        },
+        {
+          "name": "escrow_nft_account",
+          "docs": [
+            "Escrow NFT token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "listing_account"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "buyer_nft_account",
+          "docs": [
+            "Buyer's NFT token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "buyer"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancel_listing",
+      "discriminator": [
+        41,
+        183,
+        50,
+        232,
+        230,
+        233,
+        157,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "seller",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "ticket_account",
+          "docs": [
+            "The ticket being unlisted"
+          ],
+          "writable": true
+        },
+        {
+          "name": "listing_account",
+          "docs": [
+            "The listing to cancel"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  102,
+                  116,
+                  45,
+                  101,
+                  118,
+                  111,
+                  45,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  105,
+                  115,
+                  116,
+                  105,
+                  110,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ticket_account"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nft_mint"
+        },
+        {
+          "name": "escrow_nft_account",
+          "docs": [
+            "Escrow NFT token account (owned by listing PDA)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "listing_account"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "seller_nft_account",
+          "docs": [
+            "Seller's NFT token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "seller"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_event",
+      "discriminator": [
+        49,
+        219,
+        29,
+        203,
+        22,
+        98,
+        100,
+        87
+      ],
+      "accounts": [
+        {
+          "name": "organizer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "event_account",
+          "docs": [
+            "PDA for the event: [PROGRAM_SEED, EVENT_SEED, event_id_le_bytes]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  102,
+                  116,
+                  45,
+                  101,
+                  118,
+                  111,
+                  45,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  118,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "event_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "event_id",
+          "type": "u64"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "start_ts",
+          "type": "i64"
+        },
+        {
+          "name": "end_ts",
+          "type": "i64"
+        },
+        {
+          "name": "ticket_supply",
+          "type": "u32"
+        },
+        {
+          "name": "cover_image_url",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "delete_event",
+      "discriminator": [
+        103,
+        111,
+        95,
+        106,
+        232,
+        24,
+        190,
+        84
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "event_account",
+          "docs": [
+            "PDA for the event: [PROGRAM_SEED, EVENT_SEED, event_id_le_bytes]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  102,
+                  116,
+                  45,
+                  101,
+                  118,
+                  111,
+                  45,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  118,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "event_id"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "event_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [],
+      "args": []
+    },
+    {
+      "name": "initialize_event",
+      "discriminator": [
+        126,
+        249,
+        86,
+        221,
+        202,
+        171,
+        134,
+        20
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "event_account",
+          "docs": [
+            "PDA for the event: [PROGRAM_SEED, EVENT_SEED, event_id_le_bytes]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  102,
+                  116,
+                  45,
+                  101,
+                  118,
+                  111,
+                  45,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  118,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "event_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "event_id",
+          "type": "u64"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "start_ts",
+          "type": "i64"
+        },
+        {
+          "name": "end_ts",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "list_ticket",
+      "discriminator": [
+        11,
+        213,
+        240,
+        45,
+        246,
+        35,
+        44,
+        162
+      ],
+      "accounts": [
+        {
+          "name": "seller",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "ticket_account",
+          "docs": [
+            "The ticket being listed"
+          ],
+          "writable": true
+        },
+        {
+          "name": "event_account",
+          "docs": [
+            "Event account for validation"
+          ]
+        },
+        {
+          "name": "listing_account",
+          "docs": [
+            "PDA for the listing"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  102,
+                  116,
+                  45,
+                  101,
+                  118,
+                  111,
+                  45,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  105,
+                  115,
+                  116,
+                  105,
+                  110,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ticket_account"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nft_mint"
+        },
+        {
+          "name": "seller_nft_account",
+          "docs": [
+            "Seller's NFT token account"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "seller"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "escrow_nft_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "listing_account"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "price_lamports",
+          "type": "u64"
+        },
+        {
+          "name": "expires_at",
+          "type": {
+            "option": "i64"
+          }
+        }
+      ]
+    },
+    {
+      "name": "mint_ticket",
+      "discriminator": [
+        159,
+        167,
+        223,
+        60,
+        138,
+        6,
+        23,
+        29
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "event_account"
+          ]
+        },
+        {
+          "name": "event_account"
+        },
+        {
+          "name": "ticket_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  102,
+                  116,
+                  45,
+                  101,
+                  118,
+                  111,
+                  45,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "event_account"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner"
+        },
+        {
+          "name": "nft_mint",
+          "docs": [
+            "The mint account for the NFT ticket"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  102,
+                  116,
+                  45,
+                  101,
+                  118,
+                  111,
+                  45,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  102,
+                  116,
+                  45,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "event_account"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "metadata",
+          "writable": true
+        },
+        {
+          "name": "master_edition",
+          "writable": true
+        },
+        {
+          "name": "token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_metadata_program",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "seat",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "metadata_uri_override",
+          "type": {
+            "option": "string"
+          }
+        }
+      ]
+    },
+    {
+      "name": "set_scanner",
+      "discriminator": [
+        141,
+        51,
+        158,
+        241,
+        72,
+        245,
+        223,
+        204
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "event_account"
+          ]
+        },
+        {
+          "name": "event_account",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "scanner",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_event",
+      "discriminator": [
+        70,
+        108,
+        211,
+        125,
+        171,
+        176,
+        25,
+        217
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "event_account",
+          "docs": [
+            "PDA for the event: [PROGRAM_SEED, EVENT_SEED, event_id_le_bytes]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  102,
+                  116,
+                  45,
+                  101,
+                  118,
+                  111,
+                  45,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  118,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "event_id"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "event_id",
+          "type": "u64"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "start_ts",
+          "type": "i64"
+        },
+        {
+          "name": "end_ts",
+          "type": "i64"
+        },
+        {
+          "name": "ticket_supply",
+          "type": "u32"
+        },
+        {
+          "name": "cover_image_url",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "update_ticket",
+      "discriminator": [
+        177,
+        170,
+        60,
+        118,
+        217,
+        184,
+        131,
+        241
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "event_account"
+        },
+        {
+          "name": "ticket_account",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "relations": [
+            "event_account"
+          ]
+        },
+        {
+          "name": "scanner",
+          "relations": [
+            "event_account"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_stage",
+          "type": {
+            "defined": {
+              "name": "TicketStage"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_ticket_metadata",
+      "discriminator": [
+        110,
+        225,
+        96,
+        32,
+        181,
+        150,
+        95,
+        73
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "event_account",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  118,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "account",
+                "path": "event_account.event_id",
+                "account": "EventAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "ticket_account",
+          "writable": true
+        },
+        {
+          "name": "ticket_mint"
+        },
+        {
+          "name": "metadata_account",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "relations": [
+            "event_account"
+          ]
+        },
+        {
+          "name": "scanner",
+          "relations": [
+            "event_account"
+          ]
+        },
+        {
+          "name": "token_metadata_program",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        }
+      ],
+      "args": [
+        {
+          "name": "new_stage",
+          "type": {
+            "defined": {
+              "name": "TicketStage"
+            }
+          }
+        },
+        {
+          "name": "new_uri",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "upgrade_to_collectible",
+      "discriminator": [
+        55,
+        51,
+        67,
+        28,
+        152,
+        175,
+        20,
+        103
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "signer": true
+        },
+        {
+          "name": "event_account"
+        },
+        {
+          "name": "ticket_account",
+          "writable": true
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "EventAccount",
+      "discriminator": [
+        98,
+        136,
+        32,
+        165,
+        133,
+        231,
+        243,
+        154
+      ]
+    },
+    {
+      "name": "ListingAccount",
+      "discriminator": [
+        59,
+        89,
+        136,
+        25,
+        21,
+        196,
+        183,
+        13
+      ]
+    },
+    {
+      "name": "TicketAccount",
+      "discriminator": [
+        231,
+        93,
+        13,
+        18,
+        239,
+        66,
+        21,
+        45
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "EventCreated",
+      "discriminator": [
+        59,
+        186,
+        199,
+        175,
+        242,
+        25,
+        238,
+        94
+      ]
+    },
+    {
+      "name": "EventDeleted",
+      "discriminator": [
+        140,
+        28,
+        249,
+        192,
+        46,
+        170,
+        15,
+        241
+      ]
+    },
+    {
+      "name": "EventUpdated",
+      "discriminator": [
+        238,
+        86,
+        17,
+        103,
+        12,
+        182,
+        141,
+        61
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Unauthorized operation for caller"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidInput",
+      "msg": "Invalid input parameter"
+    },
+    {
+      "code": 6002,
+      "name": "EventAlreadyInitialized",
+      "msg": "Event already initialized"
+    },
+    {
+      "code": 6003,
+      "name": "TicketAlreadyListed",
+      "msg": "Ticket already listed"
+    },
+    {
+      "code": 6004,
+      "name": "TicketNotListed",
+      "msg": "Ticket not listed"
+    },
+    {
+      "code": 6005,
+      "name": "InsufficientPayment",
+      "msg": "Insufficient payment"
+    },
+    {
+      "code": 6006,
+      "name": "ListingExpired",
+      "msg": "Listing expired"
+    },
+    {
+      "code": 6007,
+      "name": "CannotListInCurrentStage",
+      "msg": "Cannot list ticket in current stage"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidTicketStage",
+      "msg": "Invalid ticket stage for this operation"
+    },
+    {
+      "code": 6009,
+      "name": "EventNotOver",
+      "msg": "The event has not finished yet"
+    },
+    {
+      "code": 6010,
+      "name": "TicketNotScanned",
+      "msg": "The ticket was not scanned for attendance"
+    },
+    {
+      "code": 6011,
+      "name": "EventAlreadyStarted",
+      "msg": "Event has already started"
+    },
+    {
+      "code": 6012,
+      "name": "TicketsAlreadySold",
+      "msg": "Tickets have already been sold"
+    }
+  ],
+  "types": [
+    {
+      "name": "EventAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "scanner",
+            "type": "pubkey"
+          },
+          {
+            "name": "event_id",
+            "type": "u64"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "start_ts",
+            "type": "i64"
+          },
+          {
+            "name": "end_ts",
+            "type": "i64"
+          },
+          {
+            "name": "tickets_sold",
+            "type": "u32"
+          },
+          {
+            "name": "ticket_supply",
+            "type": "u32"
+          },
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "cover_image_url",
+            "type": "string"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EventCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "event_id",
+            "type": "u64"
+          },
+          {
+            "name": "organizer",
+            "type": "pubkey"
+          },
+          {
+            "name": "event_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "start_ts",
+            "type": "i64"
+          },
+          {
+            "name": "end_ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EventDeleted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "event_id",
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "event_account",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EventUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "event_id",
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "event_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "start_ts",
+            "type": "i64"
+          },
+          {
+            "name": "end_ts",
+            "type": "i64"
+          },
+          {
+            "name": "ticket_supply",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ListingAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ticket",
+            "type": "pubkey"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "price_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "expires_at",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TicketAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "event",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "nft_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "seat",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "stage",
+            "type": {
+              "defined": {
+                "name": "TicketStage"
+              }
+            }
+          },
+          {
+            "name": "is_listed",
+            "type": "bool"
+          },
+          {
+            "name": "was_scanned",
+            "type": "bool"
+          },
+          {
+            "name": "listing_price",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "listing_expires_at",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TicketStage",
+      "repr": {
+        "kind": "rust"
+      },
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Prestige"
+          },
+          {
+            "name": "Qr"
+          },
+          {
+            "name": "Scanned"
+          },
+          {
+            "name": "Collectible"
+          }
+        ]
+      }
+    }
+  ],
+  "constants": [
+    {
+      "name": "ESCROW_SEED",
+      "type": "string",
+      "value": "\"escrow\""
+    },
+    {
+      "name": "EVENT_SEED",
+      "type": "string",
+      "value": "\"event\""
+    },
+    {
+      "name": "LISTING_SEED",
+      "type": "string",
+      "value": "\"listing\""
+    },
+    {
+      "name": "PROGRAM_SEED",
+      "type": "string",
+      "value": "\"nft-evo-tickets\""
+    },
+    {
+      "name": "TICKET_SEED",
+      "type": "string",
+      "value": "\"ticket\""
+    }
+  ]
+}

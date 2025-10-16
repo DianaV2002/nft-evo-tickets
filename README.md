@@ -5,6 +5,7 @@
 A decentralized wellness retreat ticketing platform — fully on-chain, eco-friendly, and built for mindful experiences.
 
 [![Pitch Deck](https://img.shields.io/badge/📊_Pitch_Deck-View_Presentation-FF6B6B?style=for-the-badge)](https://www.canva.com/design/DAG1MwQ_yz4/XBf79nYdN4_fbhyXQ_ZFlA/edit)
+[![Live App](https://img.shields.io/badge/🚀_Live_App-View_Demo-00C4CC?style=for-the-badge)](https://nft-evo-tickets-abp73tf3u-evo-tickets.vercel.app)
 
 </div>
 
@@ -204,4 +205,97 @@ anchor test
 
 # Run frontend tests
 cd frontend && npm test
+```
+
+---
+
+## 🌐 Production Deployment
+
+The application is deployed and live at: **[nft-evo-tickets.vercel.app](https://nft-evo-tickets-abp73tf3u-evo-tickets.vercel.app)**
+
+### Architecture
+
+- **Frontend**: Deployed on [Vercel](https://vercel.com)
+- **Backend**: Deployed on [Railway](https://railway.app)
+- **Blockchain**: Solana Devnet
+- **Database**: SQLite on Railway with persistent storage
+
+### Deploy Your Own Instance
+
+#### 1. Deploy Backend to Railway
+
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login
+railway login
+
+# Link to service
+railway service
+
+# Set environment variables
+railway variables --set SOLANA_CLUSTER=devnet
+railway variables --set RPC_URL=https://api.devnet.solana.com
+railway variables --set PROGRAM_ID=your_program_id
+railway variables --set LEVEL_PORT=3001
+railway variables --set LEVEL_DB_PATH=/app/backend/level-system/database/level-system.db
+railway variables --set PINATA_JWT=your_jwt
+railway variables --set PINATA_GATEWAY=your_gateway
+railway variables --set ALLOWED_ORIGINS=https://*.your-vercel-project.vercel.app
+
+# Deploy
+railway up
+
+# Get your backend URL
+railway domain
+```
+
+#### 2. Deploy Frontend to Vercel
+
+```bash
+# Install Vercel CLI
+npm install -g vercel
+
+# Deploy
+vercel --prod
+```
+
+Then add environment variables in Vercel Dashboard:
+- Go to **Settings** → **Environment Variables**
+- Add the following (select Production, Preview, and Development):
+
+```env
+VITE_LEVEL_API_URL=https://your-railway-url.railway.app
+VITE_SOLANA_NETWORK=devnet
+VITE_RPC_URL=https://api.devnet.solana.com
+VITE_PROGRAM_ID=your_program_id
+PINATA_JWT=your_pinata_jwt
+PINATA_GATEWAY=your_pinata_gateway
+```
+
+After adding variables, redeploy:
+```bash
+vercel --prod
+```
+
+#### 3. Update CORS
+
+Update Railway CORS to allow your Vercel URL:
+```bash
+railway variables --set ALLOWED_ORIGINS=https://*.your-vercel-project.vercel.app
+```
+
+### Deployment Resources
+
+- 📖 [Deployment Guide](./DEPLOYMENT_GUIDE.md) - Detailed deployment instructions
+- ⚡ [Quick Start](./QUICK_START.md) - 10-minute deployment guide
+- 🔍 [Deployment Verification](./VERIFY_DEPLOYMENT.md) - How to verify deployments
+- 📝 [Environment Setup](./ENVIRONMENT_SETUP.md) - Environment configuration guide
+
+### Production URLs
+
+- **Live App**: https://nft-evo-tickets-abp73tf3u-evo-tickets.vercel.app
+- **Backend API**: https://brave-solace-production-4337.up.railway.app
+- **Health Check**: https://brave-solace-production-4337.up.railway.app/health
 

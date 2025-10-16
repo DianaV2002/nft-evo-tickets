@@ -1,0 +1,12 @@
+# Nixpacks configuration for Railway
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm-9_x"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["echo 'No build step needed for backend'"]
+
+[start]
+cmd = "npm run level-system"

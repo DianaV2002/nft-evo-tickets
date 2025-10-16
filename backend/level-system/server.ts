@@ -18,7 +18,8 @@ import { BlockchainScanner } from './services/blockchainScanner';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.LEVEL_PORT || 3001;
+// Railway provides PORT, fallback to LEVEL_PORT or 3001 for local dev
+const PORT = process.env.PORT || process.env.LEVEL_PORT || 3001;
 const CLUSTER = (process.env.SOLANA_CLUSTER || 'devnet') as 'devnet' | 'mainnet-beta';
 const PROGRAM_ID = process.env.PROGRAM_ID || '2epW2RyDJZwUe3AahRSuKB2usqPzqm1qckPP7KPkLg3c';
 
@@ -271,13 +272,22 @@ async function start() {
     console.log('Initializing database...');
     initializeDatabase();
 
-    // Initialize blockchain scanner
-    console.log('Initializing blockchain scanner...');
-    const scanner = new BlockchainScanner(CLUSTER, PROGRAM_ID, process.env.RPC_URL);
-    await scanner.initialize();
+    // Initialize blockchain scanner (optional - won't crash server if it fails)
+    let scannerEnabled = false;
+    try {
+      console.log('Initializing blockchain scanner...');
+      const scanner = new BlockchainScanner(CLUSTER, PROGRAM_ID, process.env.RPC_URL);
+      await scanner.initialize();
 
-    // Start periodic scanning (every 10 minutes to avoid rate limits)
-    scanner.startPeriodicScan(10);
+      // Start periodic scanning (every 10 minutes to avoid rate limits)
+      scanner.startPeriodicScan(10);
+      scannerEnabled = true;
+      console.log('✅ Blockchain scanner initialized successfully');
+    } catch (scannerError: any) {
+      console.warn('⚠️  Blockchain scanner failed to initialize:', scannerError.message);
+      console.warn('⚠️  Server will continue without automatic blockchain scanning');
+      console.warn('⚠️  You can still manually add activities via POST /api/activity');
+    }
 
     // Start server
     app.listen(PORT, () => {
@@ -285,7 +295,7 @@ async function start() {
       console.log(`Cluster: ${CLUSTER}`);
       console.log(`Program ID: ${PROGRAM_ID}`);
       console.log(`Security: Helmet, CORS, Rate Limiting enabled`);
-      console.log(`Scanner: Running every 10 minutes\n`);
+      console.log(`Scanner: ${scannerEnabled ? 'Running every 10 minutes' : 'DISABLED (failed to initialize)'}\n`);
       console.log(`Endpoints:`);
       console.log(`   GET  /health`);
       console.log(`   GET  /api/auth/message`);
