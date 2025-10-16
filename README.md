@@ -281,9 +281,9 @@ vercel --prod
 
 #### 3. Update CORS
 
-Update Railway CORS to allow your Vercel URL:
+Update Railway CORS to allow your Vercel URL (example)
 ```bash
-railway variables --set ALLOWED_ORIGINS=https://*.your-vercel-project.vercel.app
+railway variables --set ALLOWED_ORIGINS=https://nft-evo-tickets-abp73tf3u-evo-tickets.vercel.app
 ```
 
 ### Deployment Resources
