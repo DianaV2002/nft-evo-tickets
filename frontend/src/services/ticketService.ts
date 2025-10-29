@@ -212,7 +212,9 @@ export async function fetchActiveListings(
   connection: Connection
 ): Promise<Array<ListingData & { ticketData?: TicketData }>> {
   try {
-    const LISTING_DISCRIMINATOR = [228, 252, 131, 72, 155, 37, 44, 52];
+    console.log("🔍 Fetching active listings from program:", PROGRAM_ID.toBase58());
+    // ListingAccount discriminator from IDL
+    const LISTING_DISCRIMINATOR = [59, 89, 136, 25, 21, 196, 183, 13];
 
     const filters: any[] = [
       {
@@ -226,6 +228,8 @@ export async function fetchActiveListings(
     const accounts = await connection.getProgramAccounts(PROGRAM_ID, {
       filters,
     });
+
+    console.log(`📋 Found ${accounts.length} listing account(s)`);
 
     const listings: Array<ListingData & { ticketData?: TicketData }> = [];
 
@@ -266,8 +270,100 @@ export async function fetchActiveListings(
         if (expiresAt !== null) {
           const now = Math.floor(Date.now() / 1000);
           if (now > expiresAt) {
+            console.log(`⏰ Skipping expired listing: ${account.pubkey.toString()}`);
             continue; // Skip expired listings
           }
+        }
+
+        console.log(`✅ Decoded listing:`, {
+          publicKey: account.pubkey.toString(),
+          ticket: ticket.toString(),
+          seller: seller.toString(),
+          priceLamports,
+        });
+
+        // Fetch the ticket data for this listing
+        let ticketData: TicketData | undefined;
+        try {
+          const ticketAccount = await connection.getAccountInfo(ticket);
+          if (ticketAccount) {
+            const ticketDataBuffer = ticketAccount.data;
+            let ticketOffset = 8; // Skip discriminator
+
+            // Event (32 bytes)
+            const event = new PublicKey(ticketDataBuffer.slice(ticketOffset, ticketOffset + 32));
+            ticketOffset += 32;
+
+            // Owner (32 bytes)
+            const owner = new PublicKey(ticketDataBuffer.slice(ticketOffset, ticketOffset + 32));
+            ticketOffset += 32;
+
+            // NFT Mint (32 bytes)
+            const nftMint = new PublicKey(ticketDataBuffer.slice(ticketOffset, ticketOffset + 32));
+            ticketOffset += 32;
+
+            // Seat (Option<String>)
+            const hasSeat = ticketDataBuffer.readUInt8(ticketOffset);
+            ticketOffset += 1;
+            let seat: string | null = null;
+            if (hasSeat === 1) {
+              const seatLength = ticketDataBuffer.readUInt32LE(ticketOffset);
+              ticketOffset += 4;
+              seat = ticketDataBuffer.slice(ticketOffset, ticketOffset + seatLength).toString("utf-8");
+              ticketOffset += seatLength;
+            }
+
+            // Stage (1 byte enum)
+            const stage = ticketDataBuffer.readUInt8(ticketOffset) as TicketStage;
+            ticketOffset += 1;
+
+            // is_listed (bool, 1 byte)
+            const isListed = ticketDataBuffer.readUInt8(ticketOffset) === 1;
+            ticketOffset += 1;
+
+            // was_scanned (bool, 1 byte)
+            const wasScanned = ticketDataBuffer.readUInt8(ticketOffset) === 1;
+            ticketOffset += 1;
+
+            // listing_price (Option<u64>)
+            const hasListingPrice = ticketDataBuffer.readUInt8(ticketOffset);
+            ticketOffset += 1;
+            let listingPrice: number | null = null;
+            if (hasListingPrice === 1) {
+              listingPrice = Number(ticketDataBuffer.readBigUInt64LE(ticketOffset));
+              ticketOffset += 8;
+            }
+
+            // listing_expires_at (Option<i64>)
+            const hasListingExpiresAt = ticketDataBuffer.readUInt8(ticketOffset);
+            ticketOffset += 1;
+            let listingExpiresAt: number | null = null;
+            if (hasListingExpiresAt === 1) {
+              listingExpiresAt = Number(ticketDataBuffer.readBigInt64LE(ticketOffset));
+              ticketOffset += 8;
+            }
+
+            // bump (1 byte)
+            const ticketBump = ticketDataBuffer.readUInt8(ticketOffset);
+
+            ticketData = {
+              publicKey: ticket.toString(),
+              event: event.toString(),
+              owner: owner.toString(),
+              nftMint: nftMint.toString(),
+              seat,
+              stage,
+              isListed,
+              wasScanned,
+              listingPrice,
+              listingExpiresAt,
+              bump: ticketBump,
+            };
+
+            console.log(`🎫 Fetched ticket data for listing:`, ticketData);
+          }
+        } catch (ticketErr) {
+          console.error(`Error fetching ticket data for ${ticket.toString()}:`, ticketErr);
         }
 
         listings.push({
@@ -278,12 +374,14 @@ export async function fetchActiveListings(
           createdAt,
           expiresAt,
           bump,
+          ticketData,
         });
       } catch (err) {
         console.error(`Error decoding listing account ${account.pubkey.toString()}:`, err);
       }
     }
 
+    console.log(`✅ Returning ${listings.length} active listings with ticket data`);
     return listings;
   } catch (error) {
     console.error("Error fetching active listings:", error);
@@ -703,6 +801,317 @@ export async function evolveTicketToQR(
     return tx;
   } catch (error: any) {
     console.error("Error evolving ticket:", error);
+    throw error;
+  }
+}
+
+/**
+ * List a ticket on the marketplace
+ * Tickets can only be listed in QR or Collectible stage
+ */
+export async function listTicketOnMarketplace(
+  connection: Connection,
+  wallet: any,
+  ticketPublicKey: PublicKey,
+  eventPublicKey: PublicKey,
+  nftMintPublicKey: PublicKey,
+  priceLamports: number,
+  expiresAt?: number
+): Promise<string> {
+  if (!wallet.publicKey) {
+    throw new Error("Wallet not connected");
+  }
+
+  const { Program, AnchorProvider, web3, BN } = await import("@coral-xyz/anchor");
+
+  const provider = new AnchorProvider(
+    connection,
+    wallet,
+    {
+      commitment: "confirmed",
+      skipPreflight: false,
+      preflightCommitment: "confirmed"
+    }
+  );
+
+  const program = new Program(idl as any, provider);
+
+  try {
+    const seller = wallet.publicKey;
+
+    // Derive listing PDA
+    const [listingPda] = web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from(PROGRAM_SEED),
+        Buffer.from(LISTING_SEED),
+        ticketPublicKey.toBuffer(),
+      ],
+      PROGRAM_ID
+    );
+
+    // Derive seller's NFT token account
+    const sellerNftAccount = await getAssociatedTokenAddress(
+      nftMintPublicKey,
+      seller
+    );
+
+    // Derive escrow NFT token account (owned by listing PDA)
+    const escrowNftAccount = await getAssociatedTokenAddress(
+      nftMintPublicKey,
+      listingPda,
+      true // allowOwnerOffCurve
+    );
+
+    console.log("[TicketService] Listing ticket on marketplace:", {
+      seller: seller.toString(),
+      ticketAccount: ticketPublicKey.toString(),
+      eventAccount: eventPublicKey.toString(),
+      listingAccount: listingPda.toString(),
+      nftMint: nftMintPublicKey.toString(),
+      price: `${priceLamports / 1e9} SOL`,
+      expiresAt: expiresAt || null,
+    });
+
+    const latestBlockhash = await connection.getLatestBlockhash("finalized");
+
+    const tx = await program.methods
+      .listTicket(new BN(priceLamports), expiresAt ? new BN(expiresAt) : null)
+      .accounts({
+        seller: seller,
+        ticketAccount: ticketPublicKey,
+        eventAccount: eventPublicKey,
+        listingAccount: listingPda,
+        nftMint: nftMintPublicKey,
+        sellerNftAccount: sellerNftAccount,
+        escrowNftAccount: escrowNftAccount,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: web3.SYSVAR_RENT_PUBKEY,
+      })
+      .rpc({
+        skipPreflight: false,
+        maxRetries: 3,
+      });
+
+    console.log("[TicketService] Transaction sent:", tx);
+
+    // Wait for confirmation with extended timeout
+    try {
+      await connection.confirmTransaction({
+        signature: tx,
+        blockhash: latestBlockhash.blockhash,
+        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+      }, "confirmed");
+    } catch (confirmError: any) {
+      // If confirmation times out, check if transaction actually succeeded
+      console.warn("[TicketService] Confirmation timeout, checking transaction status...");
+
+      const status = await connection.getSignatureStatus(tx);
+      if (status?.value?.confirmationStatus === "confirmed" || status?.value?.confirmationStatus === "finalized") {
+        console.log("[TicketService] Transaction was actually confirmed!");
+      } else {
+        throw new Error(`Transaction confirmation timeout. Check status on explorer: https://explorer.solana.com/tx/${tx}?cluster=devnet`);
+      }
+    }
+
+    console.log("[TicketService] Ticket listed successfully:", tx);
+    return tx;
+  } catch (error: any) {
+    console.error("Error listing ticket:", error);
+    throw error;
+  }
+}
+
+/**
+ * Cancel a ticket listing on the marketplace
+ */
+export async function cancelTicketListing(
+  connection: Connection,
+  wallet: any,
+  ticketPublicKey: PublicKey,
+  nftMintPublicKey: PublicKey
+): Promise<string> {
+  if (!wallet.publicKey) {
+    throw new Error("Wallet not connected");
+  }
+
+  const { Program, AnchorProvider, web3 } = await import("@coral-xyz/anchor");
+
+  const provider = new AnchorProvider(
+    connection,
+    wallet,
+    {
+      commitment: "confirmed",
+      skipPreflight: false,
+      preflightCommitment: "confirmed"
+    }
+  );
+
+  const program = new Program(idl as any, provider);
+
+  try {
+    const seller = wallet.publicKey;
+
+    // Derive listing PDA
+    const [listingPda] = web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from(PROGRAM_SEED),
+        Buffer.from(LISTING_SEED),
+        ticketPublicKey.toBuffer(),
+      ],
+      PROGRAM_ID
+    );
+
+    // Derive seller's NFT token account
+    const sellerNftAccount = await getAssociatedTokenAddress(
+      nftMintPublicKey,
+      seller
+    );
+
+    // Derive escrow NFT token account
+    const escrowNftAccount = await getAssociatedTokenAddress(
+      nftMintPublicKey,
+      listingPda,
+      true
+    );
+
+    console.log("[TicketService] Canceling listing:", {
+      seller: seller.toString(),
+      ticketAccount: ticketPublicKey.toString(),
+      listingAccount: listingPda.toString(),
+    });
+
+    const latestBlockhash = await connection.getLatestBlockhash("confirmed");
+
+    const tx = await program.methods
+      .cancelListing()
+      .accounts({
+        seller: seller,
+        ticketAccount: ticketPublicKey,
+        listingAccount: listingPda,
+        nftMint: nftMintPublicKey,
+        escrowNftAccount: escrowNftAccount,
+        sellerNftAccount: sellerNftAccount,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc({
+        skipPreflight: false,
+        maxRetries: 3,
+      });
+
+    await connection.confirmTransaction({
+      signature: tx,
+      blockhash: latestBlockhash.blockhash,
+      lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+    }, "confirmed");
+
+    console.log("[TicketService] Listing canceled successfully:", tx);
+    return tx;
+  } catch (error: any) {
+    console.error("Error canceling listing:", error);
+    throw error;
+  }
+}
+
+/**
+ * Buy a ticket from the marketplace (secondary market)
+ */
+export async function buyMarketplaceTicket(
+  connection: Connection,
+  wallet: any,
+  ticketPublicKey: PublicKey,
+  eventPublicKey: PublicKey,
+  sellerPublicKey: PublicKey,
+  nftMintPublicKey: PublicKey
+): Promise<string> {
+  if (!wallet.publicKey) {
+    throw new Error("Wallet not connected");
+  }
+
+  const { Program, AnchorProvider, web3 } = await import("@coral-xyz/anchor");
+
+  const provider = new AnchorProvider(
+    connection,
+    wallet,
+    {
+      commitment: "confirmed",
+      skipPreflight: false,
+      preflightCommitment: "confirmed"
+    }
+  );
+
+  const program = new Program(idl as any, provider);
+
+  try {
+    const buyer = wallet.publicKey;
+
+    // Derive listing PDA
+    const [listingPda] = web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from(PROGRAM_SEED),
+        Buffer.from(LISTING_SEED),
+        ticketPublicKey.toBuffer(),
+      ],
+      PROGRAM_ID
+    );
+
+    // Derive escrow NFT token account
+    const escrowNftAccount = await getAssociatedTokenAddress(
+      nftMintPublicKey,
+      listingPda,
+      true
+    );
+
+    // Derive buyer's NFT token account
+    const buyerNftAccount = await getAssociatedTokenAddress(
+      nftMintPublicKey,
+      buyer
+    );
+
+    console.log("[TicketService] Buying marketplace ticket:", {
+      buyer: buyer.toString(),
+      seller: sellerPublicKey.toString(),
+      ticketAccount: ticketPublicKey.toString(),
+      eventAccount: eventPublicKey.toString(),
+      listingAccount: listingPda.toString(),
+      nftMint: nftMintPublicKey.toString(),
+    });
+
+    const latestBlockhash = await connection.getLatestBlockhash("confirmed");
+
+    const tx = await program.methods
+      .buyMarketplaceTicket()
+      .accounts({
+        buyer: buyer,
+        ticketAccount: ticketPublicKey,
+        listingAccount: listingPda,
+        eventAccount: eventPublicKey,
+        seller: sellerPublicKey,
+        nftMint: nftMintPublicKey,
+        escrowNftAccount: escrowNftAccount,
+        buyerNftAccount: buyerNftAccount,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        rent: web3.SYSVAR_RENT_PUBKEY,
+      })
+      .rpc({
+        skipPreflight: false,
+        maxRetries: 3,
+      });
+
+    await connection.confirmTransaction({
+      signature: tx,
+      blockhash: latestBlockhash.blockhash,
+      lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+    }, "confirmed");
+
+    console.log("[TicketService] Marketplace ticket purchased successfully:", tx);
+    return tx;
+  } catch (error: any) {
+    console.error("Error buying marketplace ticket:", error);
     throw error;
   }
 }

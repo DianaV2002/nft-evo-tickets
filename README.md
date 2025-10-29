@@ -281,10 +281,17 @@ vercel --prod
 
 #### 3. Update CORS
 
-Update Railway CORS to allow your Vercel URL (example)
+Update Railway CORS to allow your Vercel URL. You can use wildcards to match all Vercel preview deployments:
+
 ```bash
+# Allow specific Vercel URL
 railway variables --set ALLOWED_ORIGINS=https://nft-evo-tickets-abp73tf3u-evo-tickets.vercel.app
+
+# OR: Allow all Vercel deployments with wildcard pattern (recommended)
+railway variables --set ALLOWED_ORIGINS="https://*.vercel.app,http://localhost:5173"
 ```
+
+**Note:** Wildcard patterns like `https://*.vercel.app` are now supported to match all Vercel preview and production deployments.
 
 ### Deployment Resources
 

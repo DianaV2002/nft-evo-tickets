@@ -29,12 +29,28 @@ app.set('trust proxy', 1); // Trust first proxy
 ``
 app.use(cors({
   origin: (origin, callback) => {
-    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',');
+    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
 
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.includes(origin)) {
+    // Check for exact match or wildcard pattern match
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (allowedOrigin === origin) return true;
+
+      // Support wildcard patterns like https://*.vercel.app
+      if (allowedOrigin.includes('*')) {
+        const pattern = allowedOrigin
+          .replace(/[.+?^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
+          .replace(/\*/g, '.*'); // Replace * with .*
+        const regex = new RegExp(`^${pattern}$`);
+        return regex.test(origin);
+      }
+
+      return false;
+    });
+
+    if (isAllowed) {
       callback(null, true);
     } else {
       console.error(`[CORS] Blocked request from origin: ${origin}`);
