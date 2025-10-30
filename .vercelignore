@@ -1,0 +1,32 @@
+# Vercel Ignore - exclude from deployment
+
+# Solana/Anchor files
+test-ledger
+target
+.anchor
+**/*.rs.bk
+
+# Backend files (not needed for frontend deployment)
+backend
+
+# Development files
+node_modules
+.env.local
+frontend/.env.local
+frontend/.env.development
+frontend/.env.development.local
+frontend/.env.production.local
+
+# Testing
+tests
+
+# Build artifacts
+dist
+*.log
+
+# IDE
+.vscode
+.idea
+
+# Scripts
+scripts

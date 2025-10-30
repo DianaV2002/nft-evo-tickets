@@ -2,13 +2,21 @@ import { Ticket, Calendar, MapPin, QrCode, Share2, DollarSign, Loader2, X, Refre
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { UsdcDisplay } from "@/components/ui/usdc-input"
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { useEffect, useState } from "react"
-import { useAuth } from "@/contexts/AuthContext"
-import { isEmailUser } from "@/services/emailTicketService"
-import { fetchUserTicketsV2Only, TicketData, getTicketStageName, getTicketRarity, cancelListing } from "@/services/ticketService"
+import {
+  fetchUserTicketsV2Only,
+  TicketData,
+  getTicketStageName,
+  getTicketRarity,
+  listTicketOnMarketplace,
+  cancelTicketListing,
+  TicketStage
+} from "@/services/ticketService"
 import { EventData, fetchEventsByKeys, formatEventDate, formatEventTime, getEventStatus } from "@/services/eventService"
 import { getImageDisplayUrl } from "@/services/imageService"
 import { generateQRCodeDataURL, generateQRCodeData, generateNFTExplorerQRData, generateScannerQRData, QRCodeData } from "@/services/qrCodeService"
@@ -16,6 +24,7 @@ import { getTicketContent, getStageBadgeStyle, getStageButtonStyle, getEvolution
 import { PublicKey } from "@solana/web3.js"
 import { LAMPORTS_PER_SOL } from "@solana/web3.js"
 import ListTicketDialog from "@/components/ListTicketDialog"
+import { toast } from "sonner"
 import { toast } from "sonner"
 
 export default function Tickets() {
@@ -31,8 +40,13 @@ export default function Tickets() {
   const [qrCodeData, setQrCodeData] = useState<string>('')
   const [qrCodeImage, setQrCodeImage] = useState<string>('')
   const [qrRefreshInterval, setQrRefreshInterval] = useState<NodeJS.Timeout | null>(null)
+
+  // Marketplace listing state
   const [listDialogOpen, setListDialogOpen] = useState(false)
-  const [selectedTicketForListing, setSelectedTicketForListing] = useState<TicketData | null>(null)
+  const [listingTicket, setListingTicket] = useState<TicketData | null>(null)
+  const [listingPrice, setListingPrice] = useState<string>('')
+  const [listingInProgress, setListingInProgress] = useState(false)
+  const [cancelingListing, setCancelingListing] = useState<string | null>(null)
 
   // Separate and sort tickets by event date
   const upcomingTickets = tickets
@@ -258,6 +272,155 @@ export default function Tickets() {
     }
   }
 
+  // Can list ticket if it's in QR or Collectible stage and not already listed
+  const canListTicket = (ticket: TicketData): boolean => {
+    const isCorrectStage = ticket.stage === TicketStage.Qr || ticket.stage === TicketStage.Collectible
+    const notListed = !ticket.isListed
+    const notScanned = !ticket.wasScanned
+
+    console.log('[canListTicket]', {
+      ticketId: ticket.publicKey.slice(0, 8),
+      stage: ticket.stage,
+      stageName: getTicketStageName(ticket.stage),
+      isQr: ticket.stage === TicketStage.Qr,
+      isCollectible: ticket.stage === TicketStage.Collectible,
+      isCorrectStage,
+      isListed: ticket.isListed,
+      notListed,
+      wasScanned: ticket.wasScanned,
+      notScanned,
+      canList: isCorrectStage && notListed && notScanned
+    })
+
+    return isCorrectStage && notListed && notScanned
+  }
+
+  // Open listing dialog
+  const openListDialog = (ticket: TicketData) => {
+    setListingTicket(ticket)
+    setListingPrice('')
+    setListDialogOpen(true)
+  }
+
+  // Close listing dialog
+  const closeListDialog = () => {
+    setListDialogOpen(false)
+    setListingTicket(null)
+    setListingPrice('')
+  }
+
+  // List ticket on marketplace
+  const handleListTicket = async () => {
+    if (!listingTicket || !wallet.publicKey) return
+
+    const priceInSol = parseFloat(listingPrice)
+    if (isNaN(priceInSol) || priceInSol <= 0) {
+      toast.error("Please enter a valid price")
+      return
+    }
+
+    const toastId = toast.loading("Sending transaction to blockchain...", {
+      duration: Infinity
+    })
+
+    try {
+      setListingInProgress(true)
+
+      const priceLamports = Math.floor(priceInSol * LAMPORTS_PER_SOL)
+
+      const tx = await listTicketOnMarketplace(
+        connection,
+        wallet,
+        new PublicKey(listingTicket.publicKey),
+        new PublicKey(listingTicket.event),
+        new PublicKey(listingTicket.nftMint),
+        priceLamports
+      )
+
+      toast.dismiss(toastId)
+      toast.success(
+        <div>
+          <p className="font-semibold">Ticket listed successfully!</p>
+          <a
+            href={`https://explorer.solana.com/tx/${tx}?cluster=devnet`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs underline text-blue-400 hover:text-blue-300"
+          >
+            View on Explorer: {tx.slice(0, 8)}...
+          </a>
+        </div>,
+        { duration: 5000 }
+      )
+      closeListDialog()
+
+      // Reload tickets after a short delay
+      setTimeout(async () => {
+        if (wallet.publicKey) {
+          const updatedTickets = await fetchUserTicketsV2Only(connection, wallet.publicKey)
+          setTickets(updatedTickets)
+        }
+      }, 2000)
+    } catch (error: any) {
+      console.error("Error listing ticket:", error)
+      toast.dismiss(toastId)
+
+      // Check if error message contains transaction signature
+      const txMatch = error.message?.match(/([A-Za-z0-9]{87,88})/)
+      if (txMatch) {
+        toast.error(
+          <div>
+            <p className="font-semibold">Transaction may have succeeded</p>
+            <p className="text-xs mb-2">Check the status on explorer:</p>
+            <a
+              href={`https://explorer.solana.com/tx/${txMatch[1]}?cluster=devnet`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs underline text-blue-400 hover:text-blue-300"
+            >
+              View Transaction
+            </a>
+          </div>,
+          { duration: 10000 }
+        )
+      } else {
+        toast.error(error?.message || "Failed to list ticket", { duration: 5000 })
+      }
+    } finally {
+      setListingInProgress(false)
+    }
+  }
+
+  // Cancel listing
+  const handleCancelListing = async (ticket: TicketData) => {
+    if (!wallet.publicKey) return
+
+    try {
+      setCancelingListing(ticket.publicKey)
+      toast.loading("Canceling listing...")
+
+      const tx = await cancelTicketListing(
+        connection,
+        wallet,
+        new PublicKey(ticket.publicKey),
+        new PublicKey(ticket.nftMint)
+      )
+
+      toast.success(`Listing canceled! Transaction: ${tx.slice(0, 8)}...`)
+
+      // Reload tickets
+      if (wallet.publicKey) {
+        const updatedTickets = await fetchUserTicketsV2Only(connection, wallet.publicKey)
+        setTickets(updatedTickets)
+      }
+    } catch (error: any) {
+      console.error("Error canceling listing:", error)
+      toast.error(error?.message || "Failed to cancel listing")
+    } finally {
+      setCancelingListing(null)
+    }
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -361,6 +524,17 @@ export default function Tickets() {
               const image = getTicketImage(ticket.stage)
               const eventStatus = eventData ? getEventStatus(eventData.startTs, eventData.endTs) : "ended"
 
+              // Debug logging
+              console.log('[Ticket Rendering]', {
+                ticketId: ticket.publicKey.slice(0, 8),
+                stage: ticket.stage,
+                stageName: getTicketStageName(ticket.stage),
+                status: status,
+                isListed: ticket.isListed,
+                wasScanned: ticket.wasScanned,
+                eventData: eventData ? 'loaded' : 'missing'
+              })
+
               return (
                 <Card key={ticket.publicKey} className="glass-card spatial-hover group overflow-hidden">
                   {/* Event Cover Image Thumbnail */}
@@ -459,15 +633,51 @@ export default function Tickets() {
 
                     {/* Action Buttons */}
                     <div className="flex space-x-2 pt-2">
-                      {eventData && (() => {
+                      {/* Listed Status - Show cancel button */}
+                      {status === 'listed' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => handleCancelListing(ticket)}
+                          disabled={cancelingListing === ticket.publicKey}
+                        >
+                          {cancelingListing === ticket.publicKey ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : null}
+                          Cancel Listing
+                        </Button>
+                      )}
+
+                      {/* Used Status */}
+                      {status === 'used' && (
+                        <Button variant="outline" size="sm" className="w-full" disabled>
+                          Event Completed
+                        </Button>
+                      )}
+
+                      {/* Active Status - Show stage-specific buttons + List button */}
+                      {status === 'active' && eventData && (() => {
                         const content = getTicketContent(ticket.stage, eventData.startTs, eventData.endTs)
+                        const canList = canListTicket(ticket)
+
+                        console.log('[Button Rendering]', {
+                          ticketId: ticket.publicKey.slice(0, 8),
+                          status: status,
+                          hasEventData: !!eventData,
+                          canList: canList,
+                          hasQrButton: !!content.content.qrCode,
+                          hasEventProgram: !!content.content.eventProgram,
+                          hasMemories: !!content.content.memories
+                        })
+
                         return (
                           <>
                             {/* QR Code Button - Only for QR stage */}
                             {content.content.qrCode && (
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 className="flex-1 spatial-hover"
                                 onClick={() => openQRDialog(ticket)}
                               >
@@ -475,12 +685,12 @@ export default function Tickets() {
                                 View QR
                               </Button>
                             )}
-                            
+
                             {/* Event Program Button - For Scanned and Collectible stages */}
                             {content.content.eventProgram && (
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 className="flex-1 spatial-hover"
                                 onClick={() => {
                                   // TODO: Implement event program viewer
@@ -491,12 +701,12 @@ export default function Tickets() {
                                 Program
                               </Button>
                             )}
-                            
+
                             {/* Memories Button - For Collectible stage */}
                             {content.content.memories && (
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 className="flex-1 spatial-hover"
                                 onClick={() => {
                                   // TODO: Implement memories viewer
@@ -507,14 +717,14 @@ export default function Tickets() {
                                 Memories
                               </Button>
                             )}
-                            
-                            {/* List Button - For active tickets */}
-                            {status === 'active' && (
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
+
+                            {/* List Button - For QR or Collectible stage tickets */}
+                            {canList && (
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 className="flex-1 spatial-hover"
-                                onClick={() => handleListTicket(ticket)}
+                                onClick={() => openListDialog(ticket)}
                               >
                                 <DollarSign className="h-4 w-4 mr-1" />
                                 List
@@ -523,22 +733,6 @@ export default function Tickets() {
                           </>
                         )
                       })()}
-                      
-                      {status === 'used' && (
-                        <Button variant="outline" size="sm" className="w-full" disabled>
-                          Event Completed
-                        </Button>
-                      )}
-                      {status === 'listed' && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="w-full"
-                          onClick={() => handleCancelListing(ticket)}
-                        >
-                          Cancel Listing
-                        </Button>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -561,6 +755,17 @@ export default function Tickets() {
               const status = getTicketStatus(ticket)
               const rarity = getTicketRarity(ticket.stage)
               const image = getTicketImage(ticket.stage)
+
+              // Debug logging
+              console.log('[Past Ticket Rendering]', {
+                ticketId: ticket.publicKey.slice(0, 8),
+                stage: ticket.stage,
+                stageName: getTicketStageName(ticket.stage),
+                status: status,
+                isListed: ticket.isListed,
+                wasScanned: ticket.wasScanned,
+                eventData: eventData ? 'loaded' : 'missing'
+              })
 
               return (
                 <Card key={ticket.publicKey} className="glass-card opacity-75 hover:opacity-100 transition-opacity overflow-hidden">
@@ -630,9 +835,99 @@ export default function Tickets() {
 
                     {/* Action Buttons */}
                     <div className="flex space-x-2 pt-2">
-                      <Button variant="outline" size="sm" className="w-full" disabled>
-                        Event Ended
-                      </Button>
+                      {/* Listed Status - Show cancel button */}
+                      {status === 'listed' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => handleCancelListing(ticket)}
+                          disabled={cancelingListing === ticket.publicKey}
+                        >
+                          {cancelingListing === ticket.publicKey ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : null}
+                          Cancel Listing
+                        </Button>
+                      )}
+
+                      {/* Used Status */}
+                      {status === 'used' && (
+                        <Button variant="outline" size="sm" className="w-full" disabled>
+                          Event Completed
+                        </Button>
+                      )}
+
+                      {/* Active Status - Show stage-specific buttons + List button */}
+                      {status === 'active' && eventData && (() => {
+                        const content = getTicketContent(ticket.stage, eventData.startTs, eventData.endTs)
+                        const canList = canListTicket(ticket)
+
+                        console.log('[Past Ticket Button Rendering]', {
+                          ticketId: ticket.publicKey.slice(0, 8),
+                          status: status,
+                          hasEventData: !!eventData,
+                          canList: canList,
+                          hasEventProgram: !!content.content.eventProgram,
+                          hasMemories: !!content.content.memories
+                        })
+
+                        return (
+                          <>
+                            {/* Event Program Button - For Scanned and Collectible stages */}
+                            {content.content.eventProgram && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 spatial-hover"
+                                onClick={() => {
+                                  // TODO: Implement event program viewer
+                                  console.log('View event program')
+                                }}
+                              >
+                                <FileText className="h-4 w-4 mr-1" />
+                                Program
+                              </Button>
+                            )}
+
+                            {/* Memories Button - For Collectible stage */}
+                            {content.content.memories && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 spatial-hover"
+                                onClick={() => {
+                                  // TODO: Implement memories viewer
+                                  console.log('View memories')
+                                }}
+                              >
+                                <Heart className="h-4 w-4 mr-1" />
+                                Memories
+                              </Button>
+                            )}
+
+                            {/* List Button - For Collectible stage tickets */}
+                            {canList && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 spatial-hover"
+                                onClick={() => openListDialog(ticket)}
+                              >
+                                <DollarSign className="h-4 w-4 mr-1" />
+                                List
+                              </Button>
+                            )}
+                          </>
+                        )
+                      })()}
+
+                      {/* Default for past events with no special status */}
+                      {status !== 'active' && status !== 'listed' && status !== 'used' && (
+                        <Button variant="outline" size="sm" className="w-full" disabled>
+                          Event Ended
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -814,12 +1109,86 @@ export default function Tickets() {
       </Dialog>
 
       {/* List Ticket Dialog */}
-      <ListTicketDialog
-        open={listDialogOpen}
-        onOpenChange={setListDialogOpen}
-        ticket={selectedTicketForListing}
-        onSuccess={handleListingSuccess}
-      />
+      <Dialog open={listDialogOpen} onOpenChange={closeListDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              List Ticket on Marketplace
+            </DialogTitle>
+            <DialogDescription>
+              Set a price for your ticket. Only tickets in QR or Collectible stage can be listed.
+            </DialogDescription>
+          </DialogHeader>
+
+          {listingTicket && (
+            <div className="space-y-4">
+              {/* Ticket Info */}
+              <div className="bg-muted/30 rounded-lg p-3">
+                <h3 className="font-semibold text-sm mb-2">
+                  {events.get(listingTicket.event)?.name || "Loading Event..."}
+                </h3>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>Stage: {getTicketStageName(listingTicket.stage)}</p>
+                  {listingTicket.seat && <p>Seat: {listingTicket.seat}</p>}
+                  <p className="font-mono">
+                    {listingTicket.publicKey.slice(0, 8)}...{listingTicket.publicKey.slice(-8)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Price Input */}
+              <div className="space-y-2">
+                <Label htmlFor="listing-price">Price (SOL)</Label>
+                <Input
+                  id="listing-price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={listingPrice}
+                  onChange={(e) => setListingPrice(e.target.value)}
+                  disabled={listingInProgress}
+                />
+                <p className="text-xs text-muted-foreground">
+                  A 5% marketplace fee will be deducted from the sale price
+                </p>
+              </div>
+
+              {/* Info */}
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  Your ticket will be held in escrow until sold or canceled. You can cancel the listing at any time.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={closeListDialog}
+              disabled={listingInProgress}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleListTicket}
+              disabled={listingInProgress || !listingPrice}
+              className="bg-gradient-primary"
+            >
+              {listingInProgress ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Listing...
+                </>
+              ) : (
+                "List Ticket"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

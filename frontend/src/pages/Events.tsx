@@ -173,19 +173,7 @@ export default function Events() {
     } catch (error: any) {
       console.error("Error buying ticket:", error)
       toast.dismiss()
-
-      if (error.message?.includes("already in use")) {
-        toast.error("You already have a ticket for this event!")
-        toast.info("Each wallet can only own one ticket per event.")
-      } else if (error.message?.includes("insufficient")) {
-        toast.error("Insufficient funds!")
-        toast.info("You need more SOL to purchase this ticket.")
-      } else if (error.message?.includes("InvalidInput") || error.message?.includes("sold out") || error.message?.includes("capacity")) {
-        toast.error("Event is sold out!")
-        toast.info("All tickets have been sold for this event.")
-      } else {
-        toast.error(error.message || "Failed to purchase ticket")
-      }
+      // Silently fail - don't show error messages to user
     } finally {
       setBuyingTicket(false)
     }

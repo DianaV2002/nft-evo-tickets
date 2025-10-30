@@ -31,9 +31,35 @@ export class BlockchainScanner {
       commitment: 'confirmed',
     });
 
-    const idl = JSON.parse(
-      fs.readFileSync('/home/diana/nft-evo-tickets/target/idl/nft_evo_tickets.json', 'utf-8')
-    );
+    // Try multiple IDL paths for production vs development
+    const idlPaths = [
+      './backend/level-system/idl/nft_evo_tickets.json', // Production path
+      './idl/nft_evo_tickets.json', // Relative to backend/level-system/
+      '../idl/nft_evo_tickets.json',
+      './target/idl/nft_evo_tickets.json', // Development path
+      '../target/idl/nft_evo_tickets.json',
+      '../../target/idl/nft_evo_tickets.json',
+    ];
+
+    let idl = null;
+    for (const path of idlPaths) {
+      try {
+        if (fs.existsSync(path)) {
+          idl = JSON.parse(fs.readFileSync(path, 'utf-8'));
+          console.log(`Found IDL at: ${path}`);
+          break;
+        }
+      } catch (err) {
+        // Continue to next path
+      }
+    }
+
+    if (!idl) {
+      console.warn('⚠️  IDL file not found. Scanner will run in limited mode (RPC-based scanning only).');
+      console.warn('   To enable full scanning, ensure target/idl/nft_evo_tickets.json is included in deployment.');
+      // Initialize connection only, program scanning will be limited
+      return;
+    }
 
     this.program = new anchor.Program(idl, provider) as anchor.Program<NftEvoTickets>;
 

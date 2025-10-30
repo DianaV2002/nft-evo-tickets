@@ -6,9 +6,18 @@ node_modules
 test-ledger
 .yarn
 .env
+.env.local
+.env.development.local
+.env.production.local
 **/qr-code.png
+
+# Exception: Include IDL in backend for deployment
+!backend/level-system/idl/*.json
 
 # Level System Database
 backend/level-system/database/*.db
 backend/level-system/database/*.db-shm
 backend/level-system/database/*.db-wal
+# Deployment
+.vercel
+.railway
