@@ -1,4 +1,4 @@
-import { Ticket, Calendar, MapPin, QrCode, Share2, DollarSign, Loader2, X, RefreshCw, FileText, Heart, Info } from "lucide-react"
+import { Ticket, Calendar, MapPin, QrCode, Share2, DollarSign, Loader2, X, RefreshCw, FileText, Heart, Info, Sparkles } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,10 +23,10 @@ import { generateQRCodeDataURL, generateQRCodeData, generateNFTExplorerQRData, g
 import { getTicketContent, getStageBadgeStyle, getStageButtonStyle, getEvolutionStatus, canEvolve, shouldShowQRCode } from "@/services/ticketContentService"
 import { PublicKey } from "@solana/web3.js"
 import { LAMPORTS_PER_SOL } from "@solana/web3.js"
-import ListTicketDialog from "@/components/ListTicketDialog"
 import { useAuth } from "@/contexts/AuthContext"
 import { isEmailUser } from "@/services/emailTicketService"
 import { toast } from "sonner"
+import { getFusionRewardByTxSignature } from './CreateEvent';
 
 export default function Tickets() {
   const { connection } = useConnection()
@@ -48,6 +48,73 @@ export default function Tickets() {
   const [listingPrice, setListingPrice] = useState<string>('')
   const [listingInProgress, setListingInProgress] = useState(false)
   const [cancelingListing, setCancelingListing] = useState<string | null>(null)
+
+  // Fusion state for collectible tickets
+  const [fusionSelected, setFusionSelected] = useState<Set<string>>(new Set())
+  const [fusionDialogOpen, setFusionDialogOpen] = useState(false)
+  const toggleFusionSelection = (ticketPubkey: string) => {
+    const ticket = tickets.find(t => t.publicKey === ticketPubkey)
+    if (!ticket) return
+
+    setFusionSelected(prev => {
+      const next = new Set(prev)
+
+      if (next.has(ticketPubkey)) {
+        next.delete(ticketPubkey)
+        return next
+      }
+
+      // If this is the first selection, allow
+      if (next.size === 0) {
+        next.add(ticketPubkey)
+        return next
+      }
+
+      // Enforce same event and organizer as first selection
+      const [firstId] = Array.from(next)
+      const first = tickets.find(t => t.publicKey === firstId)
+      const a = first ? events.get(first.event) : undefined
+      const b = events.get(ticket.event)
+
+      if (!first || !a || !b) {
+        toast.error('Event data not available for fusion')
+        return next
+      }
+
+      if (first.event !== ticket.event) {
+        toast.error('Select tickets from the same event to fuse')
+        return next
+      }
+
+      if (a.authority !== b.authority) {
+        toast.error('Select tickets from the same organizer to fuse')
+        return next
+      }
+
+      if (next.size < 2) next.add(ticketPubkey)
+      return next
+    })
+  }
+  const fusionSelectedTickets = () => tickets.filter(t => fusionSelected.has(t.publicKey))
+  const fusionHasTwo = () => fusionSelected.size === 2
+  const fusionIsSameEvent = () => {
+    const sel = fusionSelectedTickets()
+    if (sel.length !== 2) return false
+    return sel[0].event === sel[1].event
+  }
+  const fusionIsSameOrganizer = () => {
+    const sel = fusionSelectedTickets()
+    if (sel.length !== 2) return false
+    const a = events.get(sel[0].event)
+    const b = events.get(sel[1].event)
+    if (!a || !b) return false
+    return a.authority === b.authority
+  }
+  const canFuse = fusionHasTwo() && fusionIsSameEvent() && fusionIsSameOrganizer()
+  const handleFuseSelected = () => {
+    if (!canFuse) return
+    setFusionDialogOpen(true)
+  }
 
   // Separate and sort tickets by event date
   const upcomingTickets = tickets
@@ -76,6 +143,16 @@ export default function Tickets() {
       const eventB = events.get(b.event)
       if (!eventA || !eventB) return 0
       return eventB.startTs - eventA.startTs // Most recent first
+    })
+
+  // Collectible tickets (stage == Collectible)
+  const collectibleTickets = tickets
+    .filter(ticket => ticket.stage === TicketStage.Collectible)
+    .sort((a, b) => {
+      const eventA = events.get(a.event)
+      const eventB = events.get(b.event)
+      if (!eventA || !eventB) return 0
+      return eventB.startTs - eventA.startTs
     })
 
   useEffect(() => {
@@ -471,6 +548,104 @@ export default function Tickets() {
               <p className="text-sm text-muted-foreground">Listed for Sale</p>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Collectible Tickets Section with Fusion */}
+      {wallet.connected && !loading && !error && collectibleTickets.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <h2 className="text-2xl font-bold">Collectible Tickets</h2>
+              <Badge variant="secondary">{collectibleTickets.length}</Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                className="bg-gradient-primary"
+                disabled={!canFuse}
+                onClick={handleFuseSelected}
+                title={
+                  canFuse
+                    ? 'Fuse selected tickets'
+                    : fusionHasTwo()
+                      ? (!fusionIsSameEvent() ? 'Tickets must be from the same event' : !fusionIsSameOrganizer() ? 'Tickets must be from the same organizer' : 'Select two collectible tickets')
+                      : 'Select two collectible tickets to fuse'
+                }
+              >
+                Fuse Selected (2)
+              </Button>
+            </div>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Fusion rewards are set by the event organizer. Select two collectible tickets from the same event to enable fusion.
+          </div>
+          {fusionHasTwo() && (!fusionIsSameEvent() || !fusionIsSameOrganizer()) && (
+            <div className="text-xs text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded p-2">
+              { !fusionIsSameEvent() ? 'Selected tickets are from different events. ' : ''}
+              { !fusionIsSameOrganizer() ? 'Selected tickets have different organizers.' : ''}
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {collectibleTickets.map((ticket) => {
+              const eventData = events.get(ticket.event)
+              const rarity = getTicketRarity(ticket.stage)
+              const image = getTicketImage(ticket.stage)
+              const isSelected = fusionSelected.has(ticket.publicKey)
+
+              return (
+                <Card key={`collectible-${ticket.publicKey}`} className={`glass-card group overflow-hidden ${ isSelected ? 'ring-2 ring-primary' : '' }`}>
+                  <div className="aspect-video relative overflow-hidden bg-gradient-to-br from-primary/20 to-accent/20">
+                    {eventData?.coverImageUrl && getImageDisplayUrl(eventData.coverImageUrl) ? (
+                      <img
+                        src={getImageDisplayUrl(eventData.coverImageUrl)!}
+                        alt={eventData?.name || 'Event'}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center ${eventData?.coverImageUrl && getImageDisplayUrl(eventData.coverImageUrl) ? 'hidden' : ''}`}>
+                      <div className="text-6xl opacity-40">{image}</div>
+                    </div>
+                    <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+                      <Badge className="bg-purple-600 text-white">Collectible</Badge>
+                      <Badge className={getRarityColor(rarity)}>{rarity}</Badge>
+                    </div>
+                  </div>
+
+                  <CardHeader className="pb-3">
+                    <CardTitle className="line-clamp-1 group-hover:text-primary transition-colors">
+                      {eventData?.name || 'Event'}
+                    </CardTitle>
+                    <CardDescription>
+                      {getTicketStageName(ticket.stage)} {ticket.seat ? `• Seat ${ticket.seat}` : ''}
+                    </CardDescription>
+                  </CardHeader>
+
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">NFT Mint</span>
+                      <span className="text-xs font-mono">{ticket.nftMint.slice(0,4)}...{ticket.nftMint.slice(-4)}</span>
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        variant={isSelected ? 'default' : 'outline'}
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => toggleFusionSelection(ticket.publicKey)}
+                      >
+                        {isSelected ? 'Selected for Fusion' : 'Select for Fusion'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -1150,6 +1325,79 @@ export default function Tickets() {
               ) : (
                 "List Ticket"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fusion Dialog */}
+      <Dialog open={fusionDialogOpen} onOpenChange={setFusionDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Fuse Collectible Tickets
+            </DialogTitle>
+            <DialogDescription>
+              Fusion rewards are defined by the event organizer. Selected tickets must be from the same event and organizer.
+            </DialogDescription>
+          </DialogHeader>
+
+          {(() => {
+            const sel = tickets.filter(t => fusionSelected.has(t.publicKey))
+            const event = sel.length === 2 ? events.get(sel[0].event) : undefined
+            const reward = sel.length === 2 ? getFusionRewardByTxSignature(sel[0].event) : null;
+            return (
+              <div className="space-y-4">
+                {/* Selection Summary */}
+                <div className="bg-muted/30 rounded-lg p-3 text-sm">
+                  {sel.length === 2 ? (
+                    <div className="space-y-1">
+                      <div className="font-medium">{event?.name || 'Selected Event'}</div>
+                      <div className="text-muted-foreground">Organizer: <span className="font-mono text-xs">{event?.authority?.slice(0,8)}...{event?.authority?.slice(-8)}</span></div>
+                      <div className="text-muted-foreground text-xs">
+                        Tickets:
+                        <div className="mt-1 space-y-1">
+                          {sel.map((t) => (
+                            <div key={t.publicKey} className="flex justify-between">
+                              <span>{getTicketStageName(t.stage)}{t.seat ? ` • Seat ${t.seat}` : ''}</span>
+                              <span className="font-mono">{t.publicKey.slice(0,6)}...{t.publicKey.slice(-6)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-muted-foreground">Select two collectible tickets to fuse.</div>
+                  )}
+                </div>
+
+                {/* Rewards Preview (from organizer, if any) */}
+                {reward && (
+                  <div className="rounded-lg border border-green-500/40 p-4 bg-green-100 dark:bg-green-900/20">
+                    <div className="text-base font-semibold text-green-700 dark:text-green-300 mb-1">Fusion Reward</div>
+                    <div className="font-medium text-green-700 dark:text-green-200 pb-1">{reward.title}</div>
+                    <div className="text-xs text-green-800 dark:text-green-300">{reward.description}</div>
+                  </div>
+                )}
+                {!reward && (
+                  <div className="rounded-lg border border-primary/20 p-3 bg-primary/5">
+                    <div className="text-sm font-medium text-primary mb-1">Organizer Rewards (Preview)</div>
+                    <div className="text-xs text-muted-foreground">
+                      Rewards for fusion are configured by the event organizer. This will show details like upgraded metadata, perks, or collectibles.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setFusionDialogOpen(false)}>
+              Close
+            </Button>
+            <Button disabled className="opacity-80">
+              Coming Soon
             </Button>
           </DialogFooter>
         </DialogContent>

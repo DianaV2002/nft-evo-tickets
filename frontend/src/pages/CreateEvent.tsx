@@ -1,11 +1,11 @@
-import React, { useState, useRef } from "react"
-import { Calendar, MapPin, Clock, Users, DollarSign, Ticket, Loader2, CheckCircle2, Sparkles, Upload, Image, X, Leaf, Zap, Coins, Info } from "lucide-react"
+import React, { useState, useRef, useEffect } from "react"
+import { Calendar, MapPin, Clock, Users, DollarSign, Ticket, Loader2, CheckCircle2, Sparkles, Upload, Image, X, Leaf, Zap, Coins, Info, Gift, Star } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { UsdcInput, UsdcDisplay } from "@/components/ui/usdc-input"
@@ -21,6 +21,14 @@ import { recordActivity } from "@/services/levelService"
 import { mapError, UserFriendlyError } from "@/utils/errorMapper"
 import { usdcToLamportsWithPrice, formatUsdc } from "@/utils/usdcUtils"
 import { PublicKey } from "@solana/web3.js"
+
+export function getFusionRewardByTxSignature(txSig: string) {
+  const raw = localStorage.getItem('fusionReward:' + txSig);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch { return null; }
+}
 
 type EventFormData = {
   name: string
@@ -46,9 +54,9 @@ export default function CreateEvent() {
       startDateTime: undefined,
       endDateTime: undefined,
       location: "",
-      capacity: 0,
-      ticketPriceUsdc: 0,
-      ticketSupply: 0,
+      capacity: undefined,
+      ticketPriceUsdc: undefined,
+      ticketSupply: undefined,
       coverPhoto: null,
     },
     mode: "onChange"
@@ -61,6 +69,9 @@ export default function CreateEvent() {
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [mintingCost, setMintingCost] = useState<number>(0)
   const [carbonFootprintReduced, setCarbonFootprintReduced] = useState<number>(0)
+  const [rewardDialogOpen, setRewardDialogOpen] = useState(false);
+  const [fusionReward, setFusionReward] = useState({ title: '', description: '' });
+  const [completedReward, setCompletedReward] = useState(false);
 
   // Watch form state for validation
   const watchedFields = form.watch()
@@ -93,6 +104,33 @@ export default function CreateEvent() {
   React.useEffect(() => {
     calculateCostsAndImpact()
   }, [watchedFields.ticketSupply, watchedFields.capacity])
+
+  // Show reward dialog if event creation succeeded, not yet completed, and organizer hasn't skipped
+  useEffect(() => {
+    if (txSignature && !completedReward && !rewardDialogOpen) {
+      setRewardDialogOpen(true);
+    }
+  }, [txSignature]);
+
+  const saveRewardToStorage = (key: string, reward: { title: string, description: string }) => {
+    localStorage.setItem('fusionReward:' + key, JSON.stringify(reward));
+  };
+
+  const handleConfirmReward = () => {
+    if (txSignature && fusionReward.title.trim()) {
+      saveRewardToStorage(txSignature, fusionReward);
+      setRewardDialogOpen(false);
+      setCompletedReward(true);
+      // Now proceed as before (redirect)
+      setTimeout(() => navigate('/my-events'), 1500);
+    }
+  };
+
+  const handleSkipReward = () => {
+    setRewardDialogOpen(false);
+    setCompletedReward(true);
+    setTimeout(() => navigate('/my-events'), 1500);
+  };
 
   const onSubmit = async (data: EventFormData) => {
     if (!wallet.connected && !isConnected) {
@@ -210,6 +248,7 @@ export default function CreateEvent() {
       }
 
       setTxSignature(signature)
+      setRewardDialogOpen(true)
       console.log("Event created successfully:", signature)
 
       // Record activity to instantly update user level
@@ -234,13 +273,8 @@ export default function CreateEvent() {
         // Don't fail the entire operation if activity recording fails
       }
 
-      // Reset form after successful creation
+      // Reset form after successful creation (keep page while rewards modal is shown)
       form.reset()
-
-      // Redirect to My Events page after a short delay to show success message
-      setTimeout(() => {
-        navigate('/my-events')
-      }, 3000)
     } catch (err: any) {
       console.error("Failed to create event:", err)
       const friendlyError = mapError(err)
@@ -1016,6 +1050,72 @@ export default function CreateEvent() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {rewardDialogOpen && (
+        <Dialog open={rewardDialogOpen} onOpenChange={setRewardDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Gift className="h-5 w-5 text-primary" />
+                Delight Your Collectors with Fusion Rewards
+              </DialogTitle>
+              <DialogDescription>
+                Set a special reward for attendees who fuse two collectibles from this event. You can edit this later.
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Presets */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+              <button
+                type="button"
+                className="p-3 rounded-md border hover:border-primary/50 text-left text-sm bg-muted/30"
+                onClick={() => setFusionReward({ title: 'VIP Lounge Access', description: 'Grants entry to the exclusive VIP lounge during the event.' })}
+              >
+                <Star className="inline-block h-4 w-4 mr-1 text-yellow-500" /> VIP Access
+              </button>
+              <button
+                type="button"
+                className="p-3 rounded-md border hover:border-primary/50 text-left text-sm bg-muted/30"
+                onClick={() => setFusionReward({ title: 'Golden Collectible NFT', description: 'A rare upgraded NFT airdropped to fused collectors.' })}
+              >
+                <Sparkles className="inline-block h-4 w-4 mr-1 text-primary" /> Golden NFT
+              </button>
+              <button
+                type="button"
+                className="p-3 rounded-md border hover:border-primary/50 text-left text-sm bg-muted/30"
+                onClick={() => setFusionReward({ title: 'Merch Discount', description: '10% off official event merchandise for fused collectors.' })}
+              >
+                💸 Merch Discount
+              </button>
+            </div>
+
+            {/* Custom Form */}
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor='fusion-reward-title'>Reward Title</Label>
+                <Input id='fusion-reward-title' placeholder='e.g. VIP Access, Golden NFT, Perk...'
+                  value={fusionReward.title} onChange={e => setFusionReward({ ...fusionReward, title: e.target.value })} />
+              </div>
+              <div>
+                <Label htmlFor='fusion-reward-desc'>Reward Description</Label>
+                <Textarea id='fusion-reward-desc' placeholder='Describe the perk, eligibility, and how it’s delivered.'
+                  value={fusionReward.description} onChange={e => setFusionReward({ ...fusionReward, description: e.target.value })} />
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                Tip: Keep it short and exciting. You can always refine later from your organizer tools.
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={handleSkipReward}>Skip for now</Button>
+              <Button disabled={!fusionReward.title.trim()} onClick={handleConfirmReward} className="bg-gradient-primary">
+                Save Reward
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }
