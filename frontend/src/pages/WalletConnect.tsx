@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LoginOptions } from "@/components/auth/LoginOptions";
+import { useAuth } from "@/contexts/AuthContext";
 
 import { 
   Ticket, 
@@ -34,13 +36,14 @@ import logo from "@/assets/logo.png";
 
 export default function WalletConnect() {
   const { connected } = useWallet();
+  const { isConnected } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (connected) {
+    if (connected || isConnected) {
       navigate("/");
     }
-  }, [connected, navigate]);
+  }, [connected, isConnected, navigate]);
 
   const gamificationLevels = [
     { name: "Bronze", icon: Award, color: "text-orange-400", perks: ["Basic access", "Event discovery"] },
@@ -134,10 +137,10 @@ export default function WalletConnect() {
           <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto font-light">
             Buy, collect, resell, and level up with NFT-powered tickets
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <WalletMultiButton className="!bg-gradient-primary hover:opacity-90 transition-opacity !rounded-lg !px-8 !py-6 !text-lg !font-medium">
-              Connect Wallet
-            </WalletMultiButton>
+          
+          {/* Multiple Login Options */}
+          <div className="mb-8">
+            <LoginOptions onSuccess={() => navigate("/")} />
           </div>
         </div>
 
@@ -305,15 +308,15 @@ export default function WalletConnect() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {organizerPlans.map((plan) => (
-              <Card key={plan.name} className={`glass-card border-none spatial-hover ${plan.popular ? 'ring-2 ring-primary' : ''}`}>
-                <CardContent className="p-8">
+              <Card key={plan.name} className={`glass-card border-none spatial-hover ${plan.popular ? 'ring-2 ring-primary' : ''} h-full`}>
+                <CardContent className="p-8 flex flex-col h-full">
                   {plan.popular && (
                     <Badge className="mb-4 bg-primary text-primary-foreground">Most Popular</Badge>
                   )}
                   <h3 className="text-2xl font-light mb-2">{plan.name}</h3>
                   <p className="text-3xl font-medium mb-2 gradient-text">{plan.price}</p>
                   <p className="text-sm text-muted-foreground mb-6">{plan.description}</p>
-                  <ul className="space-y-3 mb-8">
+                  <ul className="space-y-3 mb-8 flex-grow">
                     {plan.features.map((feature, idx) => (
                       <li key={idx} className="flex items-center gap-2 text-sm">
                         <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
@@ -321,7 +324,7 @@ export default function WalletConnect() {
                       </li>
                     ))}
                   </ul>
-                  <Button className="w-full" variant={plan.popular ? "default" : "outline"}>
+                  <Button className="w-full mt-auto" variant={plan.popular ? "default" : "outline"}>
                     {plan.price === "Custom" ? "Contact Us" : "Get Started"}
                   </Button>
                 </CardContent>
@@ -387,11 +390,14 @@ export default function WalletConnect() {
 
         {/* Final CTA */}
         <div className="text-center">
-          <p className="text-muted-foreground mb-4">Ready to experience the future of events?</p>
-          <WalletMultiButton className="!bg-gradient-primary hover:opacity-90 transition-opacity !rounded-lg !px-8 !py-6 !text-lg !font-medium">
-            Connect Wallet
-          </WalletMultiButton>
-          <p className="text-sm text-muted-foreground mt-4">
+          <p className="text-muted-foreground mb-6">Ready to experience the future of events?</p>
+          
+          {/* Multiple Login Options */}
+          <div className="mb-6">
+            <LoginOptions onSuccess={() => navigate("/")} />
+          </div>
+          
+          <p className="text-sm text-muted-foreground">
             Don't have a wallet?{" "}
             <a
               href="https://phantom.app/"
@@ -401,6 +407,7 @@ export default function WalletConnect() {
             >
               Download Phantom
             </a>
+            {" "}or use email/social login above
           </p>
         </div>
       </div>

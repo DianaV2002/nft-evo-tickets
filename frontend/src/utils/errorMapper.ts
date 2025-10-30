@@ -9,9 +9,6 @@ export interface UserFriendlyError {
   type: 'error' | 'warning' | 'info'
 }
 
-/**
- * Maps Solana/Anchor program errors to user-friendly messages
- */
 export function mapProgramError(error: any): UserFriendlyError {
   const errorMessage = error?.message || error?.toString() || 'Unknown error'
   
@@ -21,6 +18,15 @@ export function mapProgramError(error: any): UserFriendlyError {
       title: 'Access Denied',
       message: 'You don\'t have permission to perform this action.',
       suggestion: 'Make sure you\'re connected with the correct wallet.',
+      type: 'error'
+    }
+  }
+  
+  if (errorMessage.includes('Insufficient SOL balance')) {
+    return {
+      title: 'Insufficient SOL Balance',
+      message: 'Your wallet needs SOL to pay for transaction fees.',
+      suggestion: 'Please visit https://faucet.solana.com to get test SOL for the devnet.',
       type: 'error'
     }
   }

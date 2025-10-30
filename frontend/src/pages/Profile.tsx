@@ -6,12 +6,15 @@ import { useParams } from "react-router-dom";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useEffect, useState } from "react";
 import { fetchAllEvents } from "@/services/eventService";
+import { useAuth } from "@/contexts/AuthContext";
+import { PublicKey } from "@solana/web3.js";
 
 export default function Profile() {
   const { id } = useParams();
   const { connection } = useConnection();
   const wallet = useWallet();
-  const [user, setUser] = useState(null);
+  const { user, isConnected } = useAuth();
+  const [profileUser, setProfileUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userEvents, setUserEvents] = useState([]);
   const [userStats, setUserStats] = useState({
@@ -21,9 +24,12 @@ export default function Profile() {
     referrals: 0
   });
 
-  // Generate user data based on wallet
+  // Generate user data based on wallet or email auth
   useEffect(() => {
-    if (!wallet.connected || !wallet.publicKey) {
+    const isAuthenticated = wallet.connected || isConnected;
+    const currentPublicKey = wallet.publicKey || (user?.publicKey ? new PublicKey(user.publicKey) : null);
+    
+    if (!isAuthenticated || !currentPublicKey) {
       setLoading(false);
       return;
     }
@@ -33,7 +39,7 @@ export default function Profile() {
         setLoading(true);
         
         // Fetch user's events
-        const events = await fetchAllEvents(connection, wallet.publicKey);
+        const events = await fetchAllEvents(connection, currentPublicKey);
         setUserEvents(events);
         
         // Calculate stats
@@ -49,8 +55,8 @@ export default function Profile() {
           referrals
         });
 
-        // Generate user profile based on wallet
-        const walletAddress = wallet.publicKey.toString();
+        // Generate user profile based on wallet or email auth
+        const walletAddress = currentPublicKey.toString();
         const avatarOptions = ["🌿", "🌱", "🌳", "🍃", "🌾", "🌻", "🌺", "🌸", "🌼", "🌷"];
         const nameOptions = ["Forest Walker", "Nature Lover", "Earth Guardian", "Wild Spirit", "Mountain Soul"];
         const bioOptions = [
@@ -61,18 +67,14 @@ export default function Profile() {
           "Committed to creating positive impact through community engagement."
         ];
         
+        // Use user data from auth context if available, otherwise generate
+        const displayName = user?.name || nameOptions[parseInt(walletAddress.slice(-2, -1), 16) % nameOptions.length];
+        const displayBio = bioOptions[parseInt(walletAddress.slice(-3, -2), 16) % bioOptions.length];
+        
         // More reliable avatar generation
         const lastChar = walletAddress.slice(-1);
         const avatarIndex = parseInt(lastChar, 16) || 0;
         const avatar = avatarOptions[avatarIndex % avatarOptions.length];
-        
-        const secondLastChar = walletAddress.slice(-2, -1);
-        const nameIndex = parseInt(secondLastChar, 16) || 0;
-        const name = nameOptions[nameIndex % nameOptions.length];
-        
-        const thirdLastChar = walletAddress.slice(-3, -2);
-        const bioIndex = parseInt(thirdLastChar, 16) || 0;
-        const bio = bioOptions[bioIndex % bioOptions.length];
         
         // Generate badges based on activity
         const badges = [];
@@ -89,10 +91,10 @@ export default function Profile() {
         else if (communityPoints >= 500) level = "Engaged Participant";
         else if (communityPoints >= 100) level = "Community Member";
         
-        setUser({
-          name,
+        setProfileUser({
+          name: displayName,
           avatar,
-          bio,
+          bio: displayBio,
           location: "Digital Forest",
           joined: "Recently",
           level,
@@ -113,7 +115,7 @@ export default function Profile() {
     }
 
     loadUserData();
-  }, [connection, wallet.publicKey, wallet.connected]);
+  }, [connection, wallet.publicKey, wallet.connected, user, isConnected]);
 
   // Loading state
   if (loading) {
@@ -126,13 +128,13 @@ export default function Profile() {
   }
 
   // Wallet not connected
-  if (!wallet.connected || !user) {
+  if (!wallet.connected && !isConnected || !profileUser) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <div className="text-6xl mb-4">🔒</div>
-        <h2 className="text-2xl font-bold mb-2">Wallet Not Connected</h2>
+        <h2 className="text-2xl font-bold mb-2">Authentication Required</h2>
         <p className="text-muted-foreground mb-6">
-          Please connect your wallet to view your profile
+          Please connect your wallet or sign in to view your profile
         </p>
         <Button onClick={() => wallet.connect()}>
           Connect Wallet
@@ -156,7 +158,7 @@ export default function Profile() {
       <Card className="glass-card border-none overflow-hidden">
         <div className="relative h-48 bg-gradient-primary">
           <div className="absolute inset-0 flex items-center justify-center text-9xl opacity-20">
-            {user.avatar || "🌿"}
+            {profileUser.avatar || "🌿"}
           </div>
           <Button 
             variant="outline" 
@@ -173,11 +175,11 @@ export default function Profile() {
             {/* Avatar */}
             <div className="-mt-24 relative">
               <div className="w-40 h-40 rounded-full bg-gradient-secondary flex items-center justify-center text-7xl border-8 border-background shadow-depth">
-                {user.avatar || "🌿"}
+                {profileUser.avatar || "🌿"}
               </div>
               {/* Debug info */}
               <div className="absolute -bottom-2 left-0 text-xs text-muted-foreground">
-                Avatar: {user.avatar}
+                Avatar: {profileUser.avatar}
               </div>
             </div>
 
@@ -185,19 +187,19 @@ export default function Profile() {
             <div className="flex-1">
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
                 <div>
-                  <h1 className="text-4xl font-light mb-2">{user.name}</h1>
+                  <h1 className="text-4xl font-light mb-2">{profileUser.name}</h1>
                   <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mb-3">
                     <div className="flex items-center gap-1">
                       <MapPin className="w-4 h-4" />
-                      <span>{user.location}</span>
+                      <span>{profileUser.location}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
-                      <span>Joined {user.joined}</span>
+                      <span>Joined {profileUser.joined}</span>
                     </div>
                   </div>
                   <Badge className="bg-gradient-primary text-primary-foreground border-none">
-                    {user.level}
+                    {profileUser.level}
                   </Badge>
                 </div>
 
@@ -208,13 +210,13 @@ export default function Profile() {
               </div>
 
               <p className="text-muted-foreground font-light leading-relaxed mb-6">
-                {user.bio}
+                {profileUser.bio}
               </p>
               
               {/* Wallet Address */}
               <div className="mb-6 p-3 bg-muted/30 rounded-lg">
                 <p className="text-xs text-muted-foreground mb-1">Wallet Address</p>
-                <p className="font-mono text-sm">{user.walletAddress}</p>
+                <p className="font-mono text-sm">{profileUser.walletAddress}</p>
               </div>
 
               {/* Stats */}

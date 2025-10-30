@@ -29,29 +29,24 @@ pub fn handler(
     ticket_supply: u32,
     cover_image_url: String,
 ) -> Result<()> {
-    // Basic validation
     require!(name.len() <= 64, ErrorCode::InvalidInput);
     require!(end_ts > start_ts, ErrorCode::InvalidInput);
     require!(ticket_supply > 0, ErrorCode::InvalidInput);
     require!(cover_image_url.len() <= 200, ErrorCode::InvalidInput);
 
-    // Check if event has already started
     let current_time = Clock::get()?.unix_timestamp;
     require!(current_time < ctx.accounts.event_account.start_ts, ErrorCode::EventAlreadyStarted);
 
-    // Check if tickets have been sold
     require!(ctx.accounts.event_account.tickets_sold == 0, ErrorCode::TicketsAlreadySold);
 
     let event_account = &mut ctx.accounts.event_account;
 
-    // Update event details
     event_account.name = name.clone();
     event_account.start_ts = start_ts;
     event_account.end_ts = end_ts;
     event_account.ticket_supply = ticket_supply;
     event_account.cover_image_url = cover_image_url;
 
-    // Emit event for indexing
     emit!(EventUpdated {
         event_id,
         authority: ctx.accounts.authority.key(),

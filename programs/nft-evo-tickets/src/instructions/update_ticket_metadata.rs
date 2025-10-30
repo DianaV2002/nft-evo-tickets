@@ -48,7 +48,6 @@ pub fn handler(ctx: Context<UpdateTicketMetadata>, new_stage: TicketStage, new_u
     let event_account = &ctx.accounts.event_account;
     let authority = &ctx.accounts.authority;
 
-    // --- Authorization Logic ---
     let can_set_qr = signer.key() == authority.key();
     let can_set_scanned = signer.key() == ctx.accounts.scanner.key();
 
@@ -68,7 +67,6 @@ pub fn handler(ctx: Context<UpdateTicketMetadata>, new_stage: TicketStage, new_u
         }
     }
 
-    // --- CPI to Metaplex to update URI ---
     msg!("Updating metadata URI to: {}", new_uri);
 
     let authority_key = authority.key();

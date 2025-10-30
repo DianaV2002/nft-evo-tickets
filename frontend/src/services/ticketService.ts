@@ -706,3 +706,164 @@ export async function evolveTicketToQR(
     throw error;
   }
 }
+
+/**
+ * List a ticket for sale on the marketplace
+ */
+export async function listTicket(
+  connection: Connection,
+  wallet: any,
+  ticketPublicKey: string,
+  priceLamports: number,
+  expiresAt?: number
+): Promise<string> {
+  if (!wallet.publicKey) {
+    throw new Error("Wallet not connected");
+  }
+
+  const { Program, AnchorProvider, BN, web3 } = await import("@coral-xyz/anchor");
+
+  const provider = new AnchorProvider(
+    connection,
+    wallet,
+    { commitment: "confirmed" }
+  );
+
+  const program = new Program(idl as any, provider);
+
+  try {
+    const ticketPubkey = new PublicKey(ticketPublicKey);
+    
+    // Fetch ticket account to get event and NFT mint
+    const ticketAccount = await program.account.ticketAccount.fetch(ticketPubkey);
+    const eventAccount = await program.account.eventAccount.fetch(ticketAccount.event);
+    const nftMint = new PublicKey(ticketAccount.nftMint);
+
+    // Derive listing PDA
+    const [listingPda] = web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from(PROGRAM_SEED),
+        Buffer.from(LISTING_SEED),
+        ticketPubkey.toBuffer(),
+      ],
+      PROGRAM_ID
+    );
+
+    // Get seller's NFT token account
+    const sellerNftAccount = await getAssociatedTokenAddress(
+      nftMint,
+      wallet.publicKey
+    );
+
+    // The escrow NFT token account is derived by the program itself
+    // We don't need to provide it since Anchor will derive it automatically
+    // The program creates the escrow account with the listing PDA as authority
+
+    console.log(`[TicketService] Listing ticket ${ticketPublicKey} for ${priceLamports} lamports`);
+
+    const tx = await program.methods
+      .listTicket(new BN(priceLamports), expiresAt ? new BN(expiresAt) : null)
+      .accounts({
+        seller: wallet.publicKey,
+        ticketAccount: ticketPubkey,
+        eventAccount: ticketAccount.event,
+        listingAccount: listingPda,
+        nftMint: nftMint,
+        sellerNftAccount: sellerNftAccount,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: web3.SYSVAR_RENT_PUBKEY,
+      })
+      .rpc();
+
+    console.log(`[TicketService] Ticket listed successfully: ${tx}`);
+    return tx;
+  } catch (error: any) {
+    console.error("Error listing ticket:", error);
+    console.error("Error details:", {
+      message: error.message,
+      logs: error.logs,
+      code: error.code,
+      stack: error.stack
+    });
+    throw error;
+  }
+}
+
+/**
+ * Cancel a ticket listing
+ */
+export async function cancelListing(
+  connection: Connection,
+  wallet: any,
+  ticketPublicKey: string
+): Promise<string> {
+  if (!wallet.publicKey) {
+    throw new Error("Wallet not connected");
+  }
+
+  const { Program, AnchorProvider, BN, web3 } = await import("@coral-xyz/anchor");
+
+  const provider = new AnchorProvider(
+    connection,
+    wallet,
+    { commitment: "confirmed" }
+  );
+
+  const program = new Program(idl as any, provider);
+
+  try {
+    const ticketPubkey = new PublicKey(ticketPublicKey);
+    
+    // Fetch ticket account to get NFT mint
+    const ticketAccount = await program.account.ticketAccount.fetch(ticketPubkey);
+    const nftMint = new PublicKey(ticketAccount.nftMint);
+
+    // Derive listing PDA
+    const [listingPda] = web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from(PROGRAM_SEED),
+        Buffer.from(LISTING_SEED),
+        ticketPubkey.toBuffer(),
+      ],
+      PROGRAM_ID
+    );
+
+    // Get seller's NFT token account
+    const sellerNftAccount = await getAssociatedTokenAddress(
+      nftMint,
+      wallet.publicKey
+    );
+
+    // The escrow NFT token account is derived by the program itself
+    // We don't need to provide it since Anchor will derive it automatically
+
+    console.log(`[TicketService] Canceling listing for ticket ${ticketPublicKey}`);
+
+    const tx = await program.methods
+      .cancelListing()
+      .accounts({
+        seller: wallet.publicKey,
+        ticketAccount: ticketPubkey,
+        listingAccount: listingPda,
+        nftMint: nftMint,
+        sellerNftAccount: sellerNftAccount,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+
+    console.log(`[TicketService] Listing canceled successfully: ${tx}`);
+    return tx;
+  } catch (error: any) {
+    console.error("Error canceling listing:", error);
+    console.error("Error details:", {
+      message: error.message,
+      logs: error.logs,
+      code: error.code,
+      stack: error.stack
+    });
+    throw error;
+  }
+}

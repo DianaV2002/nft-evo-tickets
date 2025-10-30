@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
+import { useAuth } from '@/contexts/AuthContext'
 import { PublicKey } from '@solana/web3.js'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -24,6 +25,7 @@ interface TicketInfo {
 export default function Scanner() {
   const { connection } = useConnection()
   const { wallet, connected, publicKey } = useWallet()
+  const { user, isConnected } = useAuth()
   const [events, setEvents] = useState<EventData[]>([])
   const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null)
   const [qrCodeInput, setQrCodeInput] = useState('')
@@ -33,10 +35,13 @@ export default function Scanner() {
 
   // Load events for this organizer
   useEffect(() => {
-    if (connected && publicKey) {
+    const isAuthenticated = connected || isConnected
+    const currentPublicKey = publicKey || (user?.publicKey ? new PublicKey(user.publicKey) : null)
+    
+    if (isAuthenticated && currentPublicKey) {
       loadEvents()
     }
-  }, [connected, publicKey])
+  }, [connected, publicKey, isConnected, user])
 
   const loadEvents = async () => {
     try {
@@ -66,8 +71,11 @@ export default function Scanner() {
       return
     }
 
-    if (!publicKey) {
-      toast.error('Please connect your wallet')
+    const isAuthenticated = connected || isConnected
+    const currentPublicKey = publicKey || (user?.publicKey ? new PublicKey(user.publicKey) : null)
+    
+    if (!isAuthenticated || !currentPublicKey) {
+      toast.error('Please connect your wallet or sign in')
       return
     }
 

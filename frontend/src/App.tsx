@@ -21,9 +21,10 @@ import NotFound from "./pages/NotFound";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
-import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
+import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
@@ -32,10 +33,11 @@ const endpoint = "https://api.devnet.solana.com";
 
 function AppRoutes() {
   const { connected } = useWallet();
+  const { isConnected } = useAuth();
 
   return (
     <BrowserRouter>
-      {connected ? (
+      {(connected || isConnected) ? (
         <Layout>
           <Routes>
             <Route path="/" element={<Dashboard />} />
@@ -62,20 +64,20 @@ function AppRoutes() {
 }
 
 const App = () => {
-  const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
-
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>
-          <QueryClientProvider client={queryClient}>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <AppRoutes />
-            </TooltipProvider>
-          </QueryClientProvider>
-        </WalletModalProvider>
+      <WalletProvider wallets={[new PhantomWalletAdapter(), new SolflareWalletAdapter()]} autoConnect>
+        <AuthProvider>
+          <WalletModalProvider>
+            <QueryClientProvider client={queryClient}>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <AppRoutes />
+              </TooltipProvider>
+            </QueryClientProvider>
+          </WalletModalProvider>
+        </AuthProvider>
       </WalletProvider>
     </ConnectionProvider>
   );

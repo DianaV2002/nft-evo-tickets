@@ -32,7 +32,7 @@ export class BlockchainScanner {
     });
 
     const idl = JSON.parse(
-      fs.readFileSync('./target/idl/nft_evo_tickets.json', 'utf-8')
+      fs.readFileSync('/home/diana/nft-evo-tickets/target/idl/nft_evo_tickets.json', 'utf-8')
     );
 
     this.program = new anchor.Program(idl, provider) as anchor.Program<NftEvoTickets>;
@@ -42,18 +42,12 @@ export class BlockchainScanner {
     console.log('Program ID:', this.programId);
   }
 
-  /**
-   * Get last scanned signature from database
-   */
   private getLastScannedSignature(): string | null {
     const db = getDatabase();
     const state = db.prepare('SELECT last_scanned_signature FROM scanner_state WHERE id = 1').get() as any;
     return state?.last_scanned_signature || null;
   }
 
-  /**
-   * Update last scanned signature in database
-   */
   private updateLastScannedSignature(signature: string): void {
     const db = getDatabase();
     db.prepare(`
@@ -65,16 +59,10 @@ export class BlockchainScanner {
     `).run(signature);
   }
 
-  /**
-   * Sleep helper for rate limiting
-   */
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  /**
-   * Scan for new activities on the blockchain
-   */
   async scanActivities(): Promise<void> {
     if (!this.program) {
       throw new Error('Scanner not initialized. Call initialize() first.');
@@ -171,9 +159,6 @@ export class BlockchainScanner {
     }
   }
 
-  /**
-   * Process a single transaction
-   */
   private async processTransaction(signature: string): Promise<void> {
     try {
       const tx = await this.connection.getParsedTransaction(signature, {
@@ -215,9 +200,6 @@ export class BlockchainScanner {
     }
   }
 
-  /**
-   * Handle ticket minted event
-   */
   private async handleTicketMinted(tx: any, signature: string): Promise<void> {
     try {
       const owner = tx.transaction.message.accountKeys.find((key: any) => key.signer)?.pubkey.toString();
@@ -236,9 +218,6 @@ export class BlockchainScanner {
     }
   }
 
-  /**
-   * Handle ticket purchased event
-   */
   private async handleTicketPurchased(tx: any, signature: string): Promise<void> {
     try {
       const buyer = tx.transaction.message.accountKeys.find((key: any) => key.signer)?.pubkey.toString();
@@ -257,9 +236,6 @@ export class BlockchainScanner {
     }
   }
 
-  /**
-   * Handle ticket scanned event
-   */
   private async handleTicketScanned(tx: any, signature: string): Promise<void> {
     try {
       // The ticket owner receives points for attendance
@@ -283,9 +259,6 @@ export class BlockchainScanner {
     }
   }
 
-  /**
-   * Handle ticket upgraded to collectible event
-   */
   private async handleTicketUpgraded(tx: any, signature: string): Promise<void> {
     try {
       const owner = tx.transaction.message.accountKeys.find((key: any) => key.signer)?.pubkey.toString();
@@ -304,9 +277,6 @@ export class BlockchainScanner {
     }
   }
 
-  /**
-   * Handle event created
-   */
   private async handleEventCreated(tx: any, signature: string): Promise<void> {
     try {
       const organizer = tx.transaction.message.accountKeys.find((key: any) => key.signer)?.pubkey.toString();
@@ -325,9 +295,6 @@ export class BlockchainScanner {
     }
   }
 
-  /**
-   * Start periodic scanning
-   */
   startPeriodicScan(intervalMinutes: number = 5): void {
     if (this.isRunning) {
       console.log('Scanner already running');
@@ -346,9 +313,6 @@ export class BlockchainScanner {
     }, intervalMinutes * 60 * 1000);
   }
 
-  /**
-   * Stop periodic scanning
-   */
   stopPeriodicScan(): void {
     if (this.scanInterval) {
       clearInterval(this.scanInterval);

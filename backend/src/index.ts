@@ -2,12 +2,19 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import multer from 'multer';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { Program, AnchorProvider } from '@project-serum/anchor';
 import PinataClient from '@pinata/sdk';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 import { getPinataClient, uploadImageToPinata } from './pinata';
+import authRoutes from './routes/auth';
+import ticketRoutes from './routes/tickets';
+import eventRoutes from './routes/events';
+import { securityHeaders, generalRateLimit } from './utils/security';
+import { initializeAuthDatabase } from './database/authDb';
 
 dotenv.config();
 
@@ -29,8 +36,36 @@ for (const envVar of requiredEnvVars) {
 }
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+
+// Security middleware
+app.use(helmet(securityHeaders));
+app.use(rateLimit(generalRateLimit));
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+// Body parsing with size limits
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ success: true, message: 'Backend is working!' });
+});
+
+// Auth routes
+app.use('/api/auth', authRoutes);
+
+// Ticket routes
+app.use('/api/tickets', ticketRoutes);
+
+// Event routes
+app.use('/api/events', eventRoutes);
 
 // Configure multer for file uploads
 const upload = multer({ storage: multer.memoryStorage() });
@@ -39,9 +74,10 @@ const SOLANA_RPC_ENDPOINT = process.env.SOLANA_RPC_ENDPOINT!;
 const connection = new Connection(SOLANA_RPC_ENDPOINT);
 const provider = new AnchorProvider(connection, {} as any, AnchorProvider.defaultOptions());
 
-import idl from '../../target/types/nft_evo_tickets.json';
-const programId = new PublicKey(idl.metadata.address);
-const program = new Program(idl as any, programId, provider);
+// Temporarily commented out due to Anchor program issues
+// import idl from '../../target/idl/nft_evo_tickets.json';
+// const programId = new PublicKey(idl.address);
+// const program = new Program(idl as any, programId, provider);
 
 
 const PINATA_JWT = process.env.PINATA_JWT!;
@@ -55,11 +91,6 @@ const METADATA_CIDS = {
 };
 
 
-/**
- * POST /api/upload-qr
- * Uploads a QR code image to Pinata IPFS
- * Multipart form data with 'image' field
- */
 app.post('/api/upload-qr', upload.single('image'), async (req, res) => {
     try {
         if (!req.file) {
@@ -86,14 +117,7 @@ app.post('/api/upload-qr', upload.single('image'), async (req, res) => {
     }
 });
 
-/**
- * POST /get-ticket-metadata
- * Body: {
- *   ticketPda: string, // The public key of the ticket's PDA account
- *   signature: string, // The signature from the user's wallet
- *   message: string    // The message that was signed
- * }
- */
+// Temporarily commented out due to Anchor program issues
 app.post('/get-ticket-metadata', async (req, res) => {
     try {
         const { ticketPda, signature, message } = req.body;
@@ -139,6 +163,9 @@ app.post('/get-ticket-metadata', async (req, res) => {
     }
 });
 
+console.log('Initializing authentication database...');
+initializeAuthDatabase();
+console.log('Authentication database initialized successfully');
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {

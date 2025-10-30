@@ -1,4 +1,4 @@
-import { Ticket, Calendar, MapPin, QrCode, Share2, DollarSign, Loader2, X, RefreshCw, FileText, Heart } from "lucide-react"
+import { Ticket, Calendar, MapPin, QrCode, Share2, DollarSign, Loader2, X, RefreshCw, FileText, Heart, Info } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -6,17 +6,22 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { UsdcDisplay } from "@/components/ui/usdc-input"
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { useEffect, useState } from "react"
-import { fetchUserTicketsV2Only, TicketData, getTicketStageName, getTicketRarity } from "@/services/ticketService"
+import { useAuth } from "@/contexts/AuthContext"
+import { isEmailUser } from "@/services/emailTicketService"
+import { fetchUserTicketsV2Only, TicketData, getTicketStageName, getTicketRarity, cancelListing } from "@/services/ticketService"
 import { EventData, fetchEventsByKeys, formatEventDate, formatEventTime, getEventStatus } from "@/services/eventService"
 import { getImageDisplayUrl } from "@/services/imageService"
 import { generateQRCodeDataURL, generateQRCodeData, generateNFTExplorerQRData, generateScannerQRData, QRCodeData } from "@/services/qrCodeService"
 import { getTicketContent, getStageBadgeStyle, getStageButtonStyle, getEvolutionStatus, canEvolve, shouldShowQRCode } from "@/services/ticketContentService"
 import { PublicKey } from "@solana/web3.js"
 import { LAMPORTS_PER_SOL } from "@solana/web3.js"
+import ListTicketDialog from "@/components/ListTicketDialog"
+import { toast } from "sonner"
 
 export default function Tickets() {
   const { connection } = useConnection()
   const wallet = useWallet()
+  const { user, isConnected } = useAuth()
   const [tickets, setTickets] = useState<TicketData[]>([])
   const [events, setEvents] = useState<Map<string, EventData>>(new Map())
   const [loading, setLoading] = useState(true)
@@ -26,6 +31,8 @@ export default function Tickets() {
   const [qrCodeData, setQrCodeData] = useState<string>('')
   const [qrCodeImage, setQrCodeImage] = useState<string>('')
   const [qrRefreshInterval, setQrRefreshInterval] = useState<NodeJS.Timeout | null>(null)
+  const [listDialogOpen, setListDialogOpen] = useState(false)
+  const [selectedTicketForListing, setSelectedTicketForListing] = useState<TicketData | null>(null)
 
   // Separate and sort tickets by event date
   const upcomingTickets = tickets
@@ -93,6 +100,43 @@ export default function Tickets() {
 
     loadTicketsAndEvents()
   }, [connection, wallet.publicKey])
+
+  const handleListTicket = (ticket: TicketData) => {
+    setSelectedTicketForListing(ticket)
+    setListDialogOpen(true)
+  }
+
+  const handleCancelListing = async (ticket: TicketData) => {
+    if (!wallet.publicKey) return
+
+    try {
+      const signature = await cancelListing(connection, wallet, ticket.publicKey)
+      toast.success("Listing canceled successfully!", {
+        description: `Transaction: ${signature.slice(0, 8)}...`,
+      })
+      
+      // Refresh tickets
+      const userTickets = await fetchUserTicketsV2Only(connection, wallet.publicKey)
+      setTickets(userTickets)
+    } catch (error: any) {
+      console.error("Error canceling listing:", error)
+      toast.error("Failed to cancel listing", {
+        description: error.message || "An error occurred while canceling the listing",
+      })
+    }
+  }
+
+  const handleListingSuccess = async () => {
+    // Refresh tickets after successful listing
+    if (!wallet.publicKey) return
+    
+    try {
+      const userTickets = await fetchUserTicketsV2Only(connection, wallet.publicKey)
+      setTickets(userTickets)
+    } catch (error) {
+      console.error("Error refreshing tickets:", error)
+    }
+  }
 
   const getTicketStatus = (ticket: TicketData): string => {
     if (ticket.wasScanned) return "used"
@@ -227,6 +271,21 @@ export default function Tickets() {
         
   
       </div>
+
+      {/* Email user notice */}
+      {isConnected && user && isEmailUser(user.authMethod) && (
+        <Card className="glass-card border-amber-300/40">
+          <CardContent className="py-4 text-sm">
+            <div className="flex items-start gap-3">
+              <Info className="h-4 w-4 text-amber-500 mt-0.5" />
+              <div>
+                <p className="text-foreground font-medium">Email accounts: My Tickets support coming soon</p>
+                <p className="text-muted-foreground">Viewing and managing tickets for email-based accounts is coming soon. Connect a wallet to see on-chain tickets, or check back later.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Wallet Connection Check */}
       {!wallet.connected && (
@@ -451,7 +510,12 @@ export default function Tickets() {
                             
                             {/* List Button - For active tickets */}
                             {status === 'active' && (
-                              <Button variant="outline" size="sm" className="flex-1 spatial-hover">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex-1 spatial-hover"
+                                onClick={() => handleListTicket(ticket)}
+                              >
                                 <DollarSign className="h-4 w-4 mr-1" />
                                 List
                               </Button>
@@ -466,7 +530,12 @@ export default function Tickets() {
                         </Button>
                       )}
                       {status === 'listed' && (
-                        <Button variant="outline" size="sm" className="w-full">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => handleCancelListing(ticket)}
+                        >
                           Cancel Listing
                         </Button>
                       )}
@@ -743,6 +812,14 @@ export default function Tickets() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* List Ticket Dialog */}
+      <ListTicketDialog
+        open={listDialogOpen}
+        onOpenChange={setListDialogOpen}
+        ticket={selectedTicketForListing}
+        onSuccess={handleListingSuccess}
+      />
     </div>
   )
 }

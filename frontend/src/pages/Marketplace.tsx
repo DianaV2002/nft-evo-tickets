@@ -1,45 +1,67 @@
-import { TrendingUp, Filter, Grid, List } from "lucide-react"
+import { TrendingUp, Filter, Grid, List, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { UsdcDisplay } from "@/components/ui/usdc-input"
+import { useConnection, useWallet } from "@solana/wallet-adapter-react"
+import { useEffect, useState } from "react"
+import { fetchActiveListings, ListingData } from "@/services/ticketService"
+import { fetchEventsByKeys, EventData } from "@/services/eventService"
+import { getImageDisplayUrl } from "@/services/imageService"
 
 export default function Marketplace() {
-  const tickets = [
-    {
-      id: 1,
-      eventName: "Sacred Forest Retreat",
-      ticketType: "Premium Wellness Pass",
-      originalPriceUsdc: 80,
-      currentPriceUsdc: 120,
-      seller: "NatureLover",
-      rarity: "Rare",
-      image: "🌳",
-      verified: true
-    },
-    {
-      id: 2,
-      eventName: "Ocean Meditation Journey",
-      ticketType: "General Admission",
-      originalPriceUsdc: 30,
-      currentPriceUsdc: 40,
-      seller: "ZenSeeker2024",
-      rarity: "Common",
-      image: "🌊",
-      verified: true
-    },
-    {
-      id: 3,
-      eventName: "Mountain Sunrise Yoga",
-      ticketType: "Early Bird Pass",
-      originalPriceUsdc: 50,
-      currentPriceUsdc: 70,
-      seller: "YogaWarrior",
-      rarity: "Epic",
-      image: "🏔️",
-      verified: false
+  const { connection } = useConnection()
+  const wallet = useWallet()
+  const [listings, setListings] = useState<(ListingData & { eventData?: EventData })[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadListings() {
+      try {
+        setLoading(true)
+        setError(null)
+
+        console.log("🛒 Loading marketplace listings...")
+        const activeListings = await fetchActiveListings(connection)
+        console.log("🛒 Fetched listings:", activeListings)
+
+        if (activeListings.length > 0) {
+          // Get unique event keys from listings
+          const eventKeys = [...new Set(activeListings.map(listing => {
+            // We need to get the event from the ticket data
+            // For now, we'll need to fetch ticket data to get the event
+            return null // This will be implemented when we have ticket data
+          }))].filter(Boolean)
+
+          if (eventKeys.length > 0) {
+            console.log("📅 Loading events for listings...")
+            const eventData = await fetchEventsByKeys(connection, eventKeys as string[])
+            console.log("📅 Fetched events:", eventData)
+
+            // Map events to listings
+            const listingsWithEvents = activeListings.map(listing => ({
+              ...listing,
+              eventData: eventData.find(event => event.publicKey === listing.ticket) // This needs to be fixed
+            }))
+
+            setListings(listingsWithEvents)
+          } else {
+            setListings(activeListings)
+          }
+        } else {
+          setListings([])
+        }
+      } catch (err) {
+        console.error("Error loading listings:", err)
+        setError("Failed to load marketplace listings")
+      } finally {
+        setLoading(false)
+      }
     }
-  ]
+
+    loadListings()
+  }, [connection])
 
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
@@ -101,46 +123,65 @@ export default function Marketplace() {
         </CardHeader>
         
         <CardContent>
-          <div className="space-y-4">
-            {tickets.map((ticket) => (
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading marketplace listings...</span>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-destructive">{error}</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => window.location.reload()}
+              >
+                Retry
+              </Button>
+            </div>
+          ) : listings.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">No tickets available for sale</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Check back later or list your own tickets for sale
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {listings.map((listing) => (
               <div
-                key={ticket.id}
+                key={listing.publicKey}
                 className="flex items-center justify-between p-4 rounded-lg bg-muted/20 hover:bg-muted/30 transition-all duration-300 group"
               >
                 <div className="flex items-center space-x-4">
-                  <div className="text-2xl">{ticket.image}</div>
+                  <div className="text-2xl">🎫</div>
                   
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
                       <h3 className="font-medium group-hover:text-primary transition-colors">
-                        {ticket.eventName}
+                        {listing.eventData?.name || "Unknown Event"}
                       </h3>
-                      <Badge className={getRarityColor(ticket.rarity)}>
-                        {ticket.rarity}
+                      <Badge variant="outline">
+                        Listed
                       </Badge>
-                      {ticket.verified && (
-                        <Badge variant="outline">
-                          ✓ Verified
-                        </Badge>
-                      )}
                     </div>
-                    <p className="text-sm text-muted-foreground">{ticket.ticketType}</p>
-                    <p className="text-xs text-muted-foreground">Seller: {ticket.seller}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Ticket ID: {listing.ticket.slice(0, 8)}...
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Seller: {listing.seller.slice(0, 8)}...
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-4">
                   <div className="text-right">
                     <UsdcDisplay
-                      amount={ticket.currentPriceUsdc}
+                      amount={listing.priceLamports / 1_000_000}
                       className="font-bold text-primary"
                     />
-                    <div className="text-xs text-muted-foreground line-through">
-                      <UsdcDisplay
-                        amount={ticket.originalPriceUsdc}
-                        showSymbol={true}
-                        className="text-xs"
-                      />
+                    <div className="text-xs text-muted-foreground">
+                      Listed {new Date(listing.createdAt * 1000).toLocaleDateString()}
                     </div>
                   </div>
                   
@@ -149,8 +190,9 @@ export default function Marketplace() {
                   </Button>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

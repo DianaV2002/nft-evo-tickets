@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { useEffect, useState } from "react"
+import { useAuth } from "@/contexts/AuthContext"
 import { fetchAllEvents, EventData, getEventStatus, formatEventDate, formatEventTime } from "@/services/eventService"
 import { getImageDisplayUrl } from "@/services/imageService"
 import { useEventStatusUpdate } from "@/hooks/useEventStatusUpdate"
 import { buyEventTicket, fetchActiveListings } from "@/services/ticketService"
+import { purchaseTicketForEmailUser, isEmailUser } from "@/services/emailTicketService"
 import { recordActivity } from "@/services/levelService"
 import { PublicKey } from "@solana/web3.js"
 import { LAMPORTS_PER_SOL } from "@solana/web3.js"
@@ -18,6 +20,7 @@ import EditEventDialog from "@/components/EditEventDialog"
 export default function Events() {
   const { connection } = useConnection()
   const wallet = useWallet()
+  const { user, isConnected } = useAuth()
   const [events, setEvents] = useState<EventData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -69,7 +72,7 @@ export default function Events() {
 
   const handleBuyTicket = async () => {
     if (!wallet.connected || !wallet.publicKey) {
-      toast.error("Please connect your wallet first")
+      toast.error("Please connect your wallet or sign in first")
       return
     }
 
@@ -84,6 +87,11 @@ export default function Events() {
   const handleConfirmPurchase = async () => {
     if (!selectedEvent || buyingTicket) return
 
+    if (!wallet.connected || !wallet.publicKey) {
+      toast.error("Please connect your wallet or sign in first")
+      return
+    }
+
     try {
       setBuyingTicket(true)
       setShowPurchaseConfirmation(false)
@@ -91,13 +99,29 @@ export default function Events() {
       const toastId = toast.loading("Purchasing your ticket...")
 
       const ticketPriceLamports = ticketPrice * LAMPORTS_PER_SOL;
-      const tx = await buyEventTicket(
-        connection,
-        wallet,
-        new PublicKey(selectedEvent.publicKey),
-        ticketPriceLamports,
-        undefined
-      )
+      
+      let tx: string;
+      
+      // Use different purchase methods based on user type
+      if (wallet.wallet?.adapter?.name?.includes('Email') || (isConnected && user && isEmailUser(user.authMethod))) {
+        // Email/social user - use backend endpoint
+        const result = await purchaseTicketForEmailUser({
+          walletAddress: wallet.publicKey.toBase58(),
+          eventPublicKey: selectedEvent.publicKey,
+          ticketPriceLamports: ticketPriceLamports,
+          seat: undefined
+        });
+        tx = result.transactionSignature;
+      } else {
+        // Real wallet user - use direct blockchain transaction
+        tx = await buyEventTicket(
+          connection,
+          wallet,
+          new PublicKey(selectedEvent.publicKey),
+          ticketPriceLamports,
+          undefined
+        )
+      }
 
       toast.dismiss(toastId)
       toast.success("Ticket purchased successfully!")
@@ -224,6 +248,21 @@ export default function Events() {
           )}
         </div>
       </div>
+
+      {/* Email user notice */}
+      {isConnected && user && isEmailUser(user.authMethod) && (
+        <Card className="glass-card border-amber-300/40">
+          <CardContent className="py-4 text-sm">
+            <div className="flex items-start gap-3">
+              <Info className="h-4 w-4 text-amber-500 mt-0.5" />
+              <div>
+                <p className="text-foreground font-medium">Email accounts: ticket purchase coming soon</p>
+                <p className="text-muted-foreground">Buying tickets with email-based accounts isn’t available yet. Please connect a wallet to purchase, or check back soon.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Loading State */}
       {loading && (
@@ -415,13 +454,15 @@ export default function Events() {
                         setSelectedEvent(event)
                         setIsDialogOpen(true)
                       }}
-                      disabled={!wallet.connected || event.ticketsSold >= event.ticketSupply}
+                      disabled={!wallet.connected || event.ticketsSold >= event.ticketSupply || (isConnected && user && isEmailUser(user.authMethod))}
                     >
                       {event.ticketsSold >= event.ticketSupply
                         ? "Sold Out"
-                        : wallet.connected
-                          ? "Buy Ticket"
-                          : "Connect Wallet"}
+                        : (isConnected && user && isEmailUser(user.authMethod))
+                          ? "Coming Soon (Email)"
+                          : wallet.connected
+                            ? "Buy Ticket"
+                            : "Connect Wallet"}
                     </Button>
                   </div>
                 </CardContent>
@@ -567,13 +608,20 @@ export default function Events() {
                   <Button
                     className="flex-1 bg-gradient-primary"
                     onClick={handleBuyTicket}
-                    disabled={buyingTicket || !wallet.connected || selectedEvent.ticketsSold >= selectedEvent.ticketSupply}
+                    disabled={
+                      buyingTicket ||
+                      !wallet.connected ||
+                      selectedEvent.ticketsSold >= selectedEvent.ticketSupply ||
+                      (isConnected && user && isEmailUser(user.authMethod))
+                    }
                   >
                     {buyingTicket
                       ? "Purchasing..."
                       : selectedEvent.ticketsSold >= selectedEvent.ticketSupply
                         ? "Sold Out"
-                        : "Buy Ticket"}
+                        : (isConnected && user && isEmailUser(user.authMethod))
+                          ? "Coming Soon (Email)"
+                          : "Buy Ticket"}
                   </Button>
                 </div>
               </>

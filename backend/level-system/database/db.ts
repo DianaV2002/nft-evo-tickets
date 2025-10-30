@@ -7,9 +7,6 @@ const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 
 let db: Database.Database;
 
-/**
- * Initialize the database with schema
- */
 export function initializeDatabase(): Database.Database {
   const dbExists = fs.existsSync(DB_PATH);
 
@@ -26,9 +23,6 @@ export function initializeDatabase(): Database.Database {
   return db;
 }
 
-/**
- * Get database instance
- */
 export function getDatabase(): Database.Database {
   if (!db) {
     db = initializeDatabase();
@@ -36,9 +30,6 @@ export function getDatabase(): Database.Database {
   return db;
 }
 
-/**
- * Close database connection
- */
 export function closeDatabase(): void {
   if (db) {
     db.close();

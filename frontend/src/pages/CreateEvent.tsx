@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react"
-import { Calendar, MapPin, Clock, Users, DollarSign, Ticket, Loader2, CheckCircle2, Sparkles, Upload, Image, X, Leaf, Zap, Coins } from "lucide-react"
+import { Calendar, MapPin, Clock, Users, DollarSign, Ticket, Loader2, CheckCircle2, Sparkles, Upload, Image, X, Leaf, Zap, Coins, Info } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,7 +13,9 @@ import { ErrorDisplay, SuccessDisplay } from "@/components/ui/error-display"
 import { useForm } from "react-hook-form"
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { useNavigate } from "react-router-dom"
+import { useAuth } from "@/contexts/AuthContext"
 import { createEvent } from "@/services/eventService"
+import { createEventForEmailUser } from "@/services/emailEventService"
 import { mintTicket } from "@/services/ticketService"
 import { recordActivity } from "@/services/levelService"
 import { mapError, UserFriendlyError } from "@/utils/errorMapper"
@@ -35,6 +37,7 @@ type EventFormData = {
 export default function CreateEvent() {
   const { connection } = useConnection()
   const wallet = useWallet()
+  const { user, isConnected } = useAuth()
   const navigate = useNavigate()
   const form = useForm<EventFormData>({
     defaultValues: {
@@ -43,9 +46,9 @@ export default function CreateEvent() {
       startDateTime: undefined,
       endDateTime: undefined,
       location: "",
-      capacity: undefined,
-      ticketPriceUsdc: undefined,
-      ticketSupply: undefined,
+      capacity: 0,
+      ticketPriceUsdc: 0,
+      ticketSupply: 0,
       coverPhoto: null,
     },
     mode: "onChange"
@@ -92,11 +95,11 @@ export default function CreateEvent() {
   }, [watchedFields.ticketSupply, watchedFields.capacity])
 
   const onSubmit = async (data: EventFormData) => {
-    if (!wallet.connected) {
+    if (!wallet.connected && !isConnected) {
       setUserError({
-        title: 'Wallet Not Connected',
-        message: 'Please connect your wallet to continue.',
-        suggestion: 'Click the "Connect Wallet" button to get started.',
+        title: 'Authentication Required',
+        message: 'Please connect your wallet or sign in to continue.',
+        suggestion: 'Click the "Connect Wallet" button or sign in with your email to get started.',
         type: 'error'
       })
       return
@@ -178,21 +181,43 @@ export default function CreateEvent() {
         return
       }
 
-      // Create event on-chain
-      const signature = await createEvent(connection, wallet, {
-        name: data.name,
-        startDate: data.startDateTime,
-        endDate: data.endDateTime,
-        ticketSupply: data.ticketSupply!,
-        coverPhoto: data.coverPhoto,
-      })
+      // Create event on-chain using different methods based on user type
+      let signature: string;
+      
+      if (wallet.connected) {
+        // Real wallet user - use direct blockchain interaction
+        signature = await createEvent(connection, wallet, {
+          name: data.name,
+          startDate: data.startDateTime,
+          endDate: data.endDateTime,
+          ticketSupply: data.ticketSupply!,
+          capacity: data.capacity || data.ticketSupply!,
+          coverPhoto: data.coverPhoto,
+        });
+      } else if (isConnected && user) {
+        // Email/social user - use backend service
+        const result = await createEventForEmailUser({
+          walletAddress: user.walletAddress,
+          name: data.name,
+          startDate: data.startDateTime,
+          endDate: data.endDateTime,
+          ticketSupply: data.ticketSupply!,
+          coverPhotoUrl: undefined // We'll handle cover photos separately if needed
+        });
+        signature = result.transactionSignature;
+      } else {
+        throw new Error('No authentication method available');
+      }
 
       setTxSignature(signature)
       console.log("Event created successfully:", signature)
 
       // Record activity to instantly update user level
       try {
-        const walletAddress = wallet.publicKey!.toBase58()
+        const walletAddress = wallet.connected 
+          ? wallet.publicKey!.toBase58() 
+          : user!.walletAddress;
+          
         const result = await recordActivity(
           walletAddress,
           'EVENT_CREATED',
@@ -234,6 +259,21 @@ export default function CreateEvent() {
           Set up your event and create NFT tickets
         </p>
       </div>
+
+      {/* Email user notice */}
+      {isConnected && user && user.authMethod === 'email' && (
+        <Card className="glass-card border-amber-300/40">
+          <CardContent className="py-4 text-sm">
+            <div className="flex items-start gap-3">
+              <Info className="h-4 w-4 text-amber-500 mt-0.5" />
+              <div>
+                <p className="text-foreground font-medium">Email accounts: event creation coming soon</p>
+                <p className="text-muted-foreground">Creating on-chain events from email-based accounts isn’t available yet. Please connect a wallet or check back soon.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Form */}
@@ -680,23 +720,31 @@ export default function CreateEvent() {
                   <Button
                     type="submit"
                     className="w-full bg-gradient-primary neon-glow spatial-hover"
-                    disabled={isCreating || !wallet.connected || !isFormValid || Object.keys(formErrors).length > 0}
+                    disabled={
+                      isCreating ||
+                      (!wallet.connected && !isConnected) ||
+                      (isConnected && user && user.authMethod === 'email') ||
+                      !isFormValid ||
+                      Object.keys(formErrors).length > 0
+                    }
                   >
                     {isCreating ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Creating Event on Blockchain...
                       </>
-                    ) : !wallet.connected ? (
-                      "Connect Wallet to Create Event"
+                    ) : (!wallet.connected && !isConnected) ? (
+                      "Connect Wallet or Sign In to Create Event"
+                    ) : (isConnected && user && user.authMethod === 'email') ? (
+                      "Coming Soon (Email)"
                     ) : (
                       "Create Event on Blockchain"
                     )}
                   </Button>
 
-                  {!wallet.connected && (
+                  {(!wallet.connected && !isConnected) && (
                     <p className="text-xs text-center text-muted-foreground">
-                      Please connect your wallet to create events on the Solana blockchain
+                      Please connect your wallet or sign in to create events on the Solana blockchain
                     </p>
                   )}
                 </form>

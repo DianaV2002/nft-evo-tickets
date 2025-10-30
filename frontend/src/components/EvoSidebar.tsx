@@ -14,6 +14,7 @@ import {
   QrCode
 } from "lucide-react"
 import { useWallet } from "@solana/wallet-adapter-react"
+import { useAuth } from "@/contexts/AuthContext"
 import logo from "@/assets/logo.png";
 
 import {
@@ -49,7 +50,8 @@ export function EvoSidebar() {
   const location = useLocation()
   const currentPath = location.pathname
   const collapsed = state === "collapsed"
-  const { disconnect, connected } = useWallet() // <-- Add connected
+  const { disconnect, connected } = useWallet()
+  const { user, isConnected, logout } = useAuth() // <-- Add connected
 
   const isActive = (path: string) => currentPath === path
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
@@ -134,14 +136,37 @@ export function EvoSidebar() {
         <SidebarGroup className="mt-auto">
           <SidebarGroupContent>
             <SidebarMenu className="space-y-2">
+              {/* User Info - show if logged in */}
+              {(connected || isConnected) && user && (
+                <SidebarMenuItem>
+                  <div className="flex items-center rounded-lg px-3 py-2 w-full text-left bg-muted/20 border border-border/50">
+                    <User className="h-5 w-5" />
+                    {!collapsed && (
+                      <div className="ml-3 flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">
+                          {user.name || user.email || 'User'}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {user.authMethod === 'wallet' ? 'Wallet User' : `${user.authMethod} User`}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </SidebarMenuItem>
+              )}
 
-
-              {/* Logout - only show if connected */}
-              {connected && (
+              {/* Logout - show if wallet connected or email user logged in */}
+              {(connected || isConnected) && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     className="flex items-center rounded-lg px-3 py-2 w-full text-left hover:bg-destructive/20 hover:text-destructive transition-all duration-300"
-                    onClick={disconnect}
+                    onClick={() => {
+                      if (connected) {
+                        disconnect();
+                      } else if (isConnected) {
+                        logout();
+                      }
+                    }}
                   >
                     <LogOut className="h-5 w-5" />
                     {!collapsed && <span className="ml-3">Logout</span>}

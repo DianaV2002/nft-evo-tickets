@@ -117,8 +117,9 @@ function deserializeEventAccount(accountData: Buffer, publicKey: string): EventD
     const nameLength = data.readUInt32LE(offset);
     offset += 4;
 
-    if (nameLength > MAX_EVENT_NAME_LENGTH || offset + nameLength > dataLength) {
-      console.warn(`[EventService] Invalid name length: ${nameLength}`);
+    // Add better bounds checking for name length
+    if (nameLength > MAX_EVENT_NAME_LENGTH || nameLength > 1000 || offset + nameLength > dataLength || nameLength === 0) {
+      console.warn(`[EventService] Invalid name length: ${nameLength} for account ${publicKey}`);
       return null;
     }
 
@@ -159,9 +160,14 @@ function deserializeEventAccount(accountData: Buffer, publicKey: string): EventD
     if (offset + 4 <= dataLength) {
       const urlLength = data.readUInt32LE(offset);
       offset += 4;
-      if (urlLength > 0 && urlLength <= MAX_COVER_IMAGE_URL_LENGTH && offset + urlLength <= dataLength) {
+      // Add better bounds checking for URL length
+      if (urlLength > 0 && urlLength <= MAX_COVER_IMAGE_URL_LENGTH && urlLength <= 2000 && offset + urlLength <= dataLength) {
         coverImageUrl = data.slice(offset, offset + urlLength).toString("utf-8");
         offset += urlLength;
+      } else if (urlLength > 0) {
+        console.warn(`[EventService] Invalid URL length: ${urlLength} for account ${publicKey}`);
+        // Skip the invalid URL data
+        offset += Math.min(urlLength, dataLength - offset);
       }
     }
 

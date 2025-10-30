@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   getAllLevels,
   getUserLevel,
@@ -19,6 +20,7 @@ import {
 
 export default function Rewards() {
   const { publicKey } = useWallet();
+  const { user, isConnected } = useAuth();
   const [copied, setCopied] = useState(false);
   const [levels, setLevels] = useState<Level[]>([]);
   const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
@@ -34,7 +36,7 @@ export default function Rewards() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Fetch data on mount and when wallet changes
+  // Fetch data on mount and when wallet or auth changes
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -45,9 +47,11 @@ export default function Rewards() {
         const levelsData = await getAllLevels();
         setLevels(levelsData);
 
-        // Fetch user data if wallet connected
-        if (publicKey) {
-          const walletAddress = publicKey.toBase58();
+        // Get wallet address from either wallet connection or email auth
+        const walletAddress = publicKey?.toBase58() || user?.walletAddress;
+        
+        // Fetch user data if authenticated
+        if (walletAddress) {
           const [userLevelData, activitiesData] = await Promise.all([
             getUserLevel(walletAddress),
             getUserActivities(walletAddress, 20),
@@ -65,7 +69,7 @@ export default function Rewards() {
     };
 
     fetchData();
-  }, [publicKey]);
+  }, [publicKey, user, isConnected]);
 
   // Determine current level index
   const currentLevelIndex = userLevel && levels.length > 0
@@ -106,7 +110,10 @@ export default function Rewards() {
     );
   }
 
-  if (!publicKey) {
+  // Check if user is authenticated (either wallet or email)
+  const isAuthenticated = publicKey || (isConnected && user);
+  
+  if (!isAuthenticated) {
     return (
       <div className="space-y-8">
         {/* Hero */}
@@ -119,7 +126,7 @@ export default function Rewards() {
               Every connection you make, every experience you share, nurtures our collective garden
             </p>
             <p className="text-lg text-primary font-medium">
-              Please connect your wallet to view your rewards
+              Please connect your wallet or sign in to view your rewards
             </p>
           </div>
         </div>

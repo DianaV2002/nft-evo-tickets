@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { useEffect, useState } from "react"
+import { useAuth } from "@/contexts/AuthContext"
 import { fetchAllEvents, EventData, getEventStatus, formatEventDate, formatEventTime, deleteEvent } from "@/services/eventService"
 import { getImageDisplayUrl } from "@/services/imageService"
 import { useEventStatusUpdate } from "@/hooks/useEventStatusUpdate"
@@ -21,6 +22,7 @@ import EditEventDialog from "@/components/EditEventDialog"
 export default function MyEvents() {
   const { connection } = useConnection()
   const wallet = useWallet()
+  const { user, isConnected } = useAuth()
   const { toast } = useToast()
   const [events, setEvents] = useState<EventData[]>([])
   const [loading, setLoading] = useState(true)
@@ -36,10 +38,14 @@ export default function MyEvents() {
 
   useEffect(() => {
     async function loadMyEvents() {
-      console.log("Loading My Events - Wallet connected:", wallet.connected, "Public key:", wallet.publicKey?.toString())
+      // Check if user is authenticated (either via wallet or email)
+      const isAuthenticated = wallet.connected || isConnected
+      const publicKey = wallet.publicKey || (user?.publicKey ? new PublicKey(user.publicKey) : null)
       
-      if (!wallet.connected || !wallet.publicKey) {
-        console.log("Wallet not connected, setting loading to false")
+      console.log("Loading My Events - Wallet connected:", wallet.connected, "Email auth:", isConnected, "Public key:", publicKey?.toString())
+      
+      if (!isAuthenticated || !publicKey) {
+        console.log("Not authenticated, setting loading to false")
         setLoading(false)
         setEvents([])
         return
@@ -48,8 +54,8 @@ export default function MyEvents() {
       try {
         setLoading(true)
         setError(null)
-        console.log("Fetching events for wallet:", wallet.publicKey.toString())
-        const fetchedEvents = await fetchAllEvents(connection, wallet.publicKey)
+        console.log("Fetching events for wallet:", publicKey.toString())
+        const fetchedEvents = await fetchAllEvents(connection, publicKey)
         console.log("Fetched events:", fetchedEvents.length)
         setEvents(fetchedEvents)
       } catch (err) {
@@ -61,7 +67,7 @@ export default function MyEvents() {
     }
 
     loadMyEvents()
-  }, [connection, wallet.connected, wallet.publicKey])
+  }, [connection, wallet.connected, wallet.publicKey, isConnected, user])
 
 
   const getStatusColor = (status: string) => {
@@ -217,9 +223,9 @@ export default function MyEvents() {
       )}
 
       {/* Wallet Not Connected State */}
-      {!wallet.connected && !loading && (
+      {!wallet.connected && !isConnected && !loading && (
         <div className="flex flex-col items-center justify-center py-20">
-          <p className="text-muted-foreground text-lg">Please connect your wallet to view your events.</p>
+          <p className="text-muted-foreground text-lg">Please connect your wallet or sign in to view your events.</p>
           <Button className="mt-4" onClick={() => window.location.href = '/wallet-connect'}>
             Connect Wallet
           </Button>
@@ -227,7 +233,7 @@ export default function MyEvents() {
       )}
 
       {/* Empty State */}
-      {!loading && !error && wallet.connected && events.length === 0 && (
+      {!loading && !error && (wallet.connected || isConnected) && events.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20">
           <p className="text-muted-foreground text-lg">You haven't created any events yet.</p>
           <Button className="mt-4" onClick={() => window.location.href = '/create-event'}>

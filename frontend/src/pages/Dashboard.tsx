@@ -4,18 +4,22 @@ import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
 import { getUserLevel, type UserLevel } from "@/services/levelService"
 import { useWallet } from "@solana/wallet-adapter-react"
+import { useAuth } from "@/contexts/AuthContext"
 import meditationBanner from "@/assets/meditation-banner.jpg"
 
 export default function Dashboard() {
   const { publicKey } = useWallet();
+  const { user, isConnected } = useAuth();
   const [myPoints, setMyPoints] = useState<number | null>(null);
   const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
 
   useEffect(() => {
     const fetchMyPoints = async () => {
       try {
-        if (publicKey) {
-          const walletAddress = publicKey.toBase58();
+        // Get wallet address from either wallet connection or email auth
+        const walletAddress = publicKey?.toBase58() || user?.walletAddress;
+        
+        if (walletAddress) {
           const level = await getUserLevel(walletAddress);
           setMyPoints(level.totalPoints);
           setUserLevel(level);
@@ -31,7 +35,7 @@ export default function Dashboard() {
     };
 
     fetchMyPoints();
-  }, [publicKey]);
+  }, [publicKey, user]);
 
   const stats = [
     {
