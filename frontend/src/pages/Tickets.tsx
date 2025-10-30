@@ -24,7 +24,8 @@ import { getTicketContent, getStageBadgeStyle, getStageButtonStyle, getEvolution
 import { PublicKey } from "@solana/web3.js"
 import { LAMPORTS_PER_SOL } from "@solana/web3.js"
 import ListTicketDialog from "@/components/ListTicketDialog"
-import { toast } from "sonner"
+import { useAuth } from "@/contexts/AuthContext"
+import { isEmailUser } from "@/services/emailTicketService"
 import { toast } from "sonner"
 
 export default function Tickets() {
@@ -115,42 +116,6 @@ export default function Tickets() {
     loadTicketsAndEvents()
   }, [connection, wallet.publicKey])
 
-  const handleListTicket = (ticket: TicketData) => {
-    setSelectedTicketForListing(ticket)
-    setListDialogOpen(true)
-  }
-
-  const handleCancelListing = async (ticket: TicketData) => {
-    if (!wallet.publicKey) return
-
-    try {
-      const signature = await cancelListing(connection, wallet, ticket.publicKey)
-      toast.success("Listing canceled successfully!", {
-        description: `Transaction: ${signature.slice(0, 8)}...`,
-      })
-      
-      // Refresh tickets
-      const userTickets = await fetchUserTicketsV2Only(connection, wallet.publicKey)
-      setTickets(userTickets)
-    } catch (error: any) {
-      console.error("Error canceling listing:", error)
-      toast.error("Failed to cancel listing", {
-        description: error.message || "An error occurred while canceling the listing",
-      })
-    }
-  }
-
-  const handleListingSuccess = async () => {
-    // Refresh tickets after successful listing
-    if (!wallet.publicKey) return
-    
-    try {
-      const userTickets = await fetchUserTicketsV2Only(connection, wallet.publicKey)
-      setTickets(userTickets)
-    } catch (error) {
-      console.error("Error refreshing tickets:", error)
-    }
-  }
 
   const getTicketStatus = (ticket: TicketData): string => {
     if (ticket.wasScanned) return "used"
