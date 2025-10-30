@@ -83,9 +83,12 @@ export default function Marketplace() {
       return
     }
 
+    const toastId = toast.loading("Purchasing ticket from marketplace...", {
+      duration: Infinity
+    })
+
     try {
       setBuyingTicket(listing.publicKey)
-      toast.loading("Purchasing ticket from marketplace...")
 
       const tx = await buyMarketplaceTicket(
         connection,
@@ -96,13 +99,30 @@ export default function Marketplace() {
         new PublicKey(listing.ticketData.nftMint)
       )
 
-      toast.success(`Ticket purchased! Transaction: ${tx.slice(0, 8)}...`)
+      toast.dismiss(toastId)
+      toast.success(
+        <div>
+          <p className="font-semibold">Ticket purchased successfully!</p>
+          <a
+            href={`https://explorer.solana.com/tx/${tx}?cluster=devnet`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs underline text-blue-400 hover:text-blue-300"
+          >
+            View on Explorer: {tx.slice(0, 8)}...
+          </a>
+        </div>,
+        { duration: 5000 }
+      )
 
       // Reload listings after purchase
-      await loadMarketplaceListings()
+      setTimeout(async () => {
+        await loadMarketplaceListings()
+      }, 2000)
     } catch (error: any) {
       console.error("Error buying ticket:", error)
-      toast.error(error?.message || "Failed to purchase ticket")
+      toast.dismiss(toastId)
+      toast.error(error?.message || "Failed to purchase ticket", { duration: 5000 })
     } finally {
       setBuyingTicket(null)
     }
