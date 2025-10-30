@@ -1,4 +1,4 @@
-import { Calendar, Clock, Loader2, ChevronDown, ChevronUp, Leaf, Coins, Zap, TreePine, CheckCircle2, Info, Edit } from "lucide-react"
+import { Calendar, Clock, Loader2, ChevronDown, ChevronUp, Leaf, Coins, Zap, TreePine, CheckCircle2, Info, Edit, Gift } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -16,6 +16,7 @@ import { PublicKey } from "@solana/web3.js"
 import { LAMPORTS_PER_SOL } from "@solana/web3.js"
 import { toast } from "sonner"
 import EditEventDialog from "@/components/EditEventDialog"
+import { getFusionRewardByTxSignature } from "./CreateEvent";
 
 export default function Events() {
   const { connection } = useConnection()
@@ -552,34 +553,49 @@ export default function Events() {
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Technical Details */}
-                <div className="space-y-3 pt-4 border-t">
-                  <h4 className="font-medium text-sm">Event Information</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Event ID:</span>
-                      <p className="font-mono text-xs">{selectedEvent.eventId}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Status:</span>
-                      <p className="font-mono text-xs">
-                        {getEventStatus(selectedEvent.startTs, selectedEvent.endTs) === 'live' ? 'Live' : 
-                         getEventStatus(selectedEvent.startTs, selectedEvent.endTs) === 'upcoming' ? 'Upcoming' : 'Ended'}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Account:</span>
-                      <p className="font-mono text-xs truncate" title={selectedEvent.publicKey}>
-                        {selectedEvent.publicKey.slice(0, 8)}...{selectedEvent.publicKey.slice(-8)}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Authority:</span>
-                      <p className="font-mono text-xs truncate" title={selectedEvent.authority}>
-                        {selectedEvent.authority.slice(0, 8)}...{selectedEvent.authority.slice(-8)}
-                      </p>
+                  {/* Fusion Reward Display */}
+                  {(() => {
+                    const fusionReward = getFusionRewardByTxSignature(selectedEvent.publicKey);
+                    return fusionReward ? (
+                      <div className="rounded-lg border border-green-500/30 bg-green-50 dark:bg-green-900/10 p-4 mt-2 flex items-start gap-3">
+                        <Gift className="h-5 w-5 text-green-600 mt-1" />
+                        <div>
+                          <div className="font-semibold text-green-800 dark:text-green-200 mb-0.5 text-base">Fusion Reward</div>
+                          <div className="font-medium text-green-700 dark:text-green-100 pb-1">{fusionReward.title}</div>
+                          <div className="text-xs text-green-800 dark:text-green-300 max-w-md">{fusionReward.description}</div>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+
+                  {/* Technical Details */}
+                  <div className="space-y-3 pt-4 border-t">
+                    <h4 className="font-medium text-sm">Event Information</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Event ID:</span>
+                        <p className="font-mono text-xs">{selectedEvent.eventId}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Status:</span>
+                        <p className="font-mono text-xs">
+                          {getEventStatus(selectedEvent.startTs, selectedEvent.endTs) === 'live' ? 'Live' : 
+                           getEventStatus(selectedEvent.startTs, selectedEvent.endTs) === 'upcoming' ? 'Upcoming' : 'Ended'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Account:</span>
+                        <p className="font-mono text-xs truncate" title={selectedEvent.publicKey}>
+                          {selectedEvent.publicKey.slice(0, 8)}...{selectedEvent.publicKey.slice(-8)}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Authority:</span>
+                        <p className="font-mono text-xs truncate" title={selectedEvent.authority}>
+                          {selectedEvent.authority.slice(0, 8)}...{selectedEvent.authority.slice(-8)}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
